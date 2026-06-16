@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+import re
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .config import settings
-from .dom import analyze_dom, blocked_elements
+from .dom import blocked_elements
 from .rag import retrieve
 from .schemas import AskRequest, AvaResponse
 
@@ -21,9 +22,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_WIDGET = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "widget", "ava-widget.js")
-)
+_HERE = os.path.dirname(__file__)
+_WIDGET = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-widget.js"))
+_DEMO = os.path.normpath(os.path.join(_HERE, "..", "..", "demo", "lyvica.html"))
 
 
 @app.get("/health")
@@ -34,6 +35,11 @@ def health() -> dict:
 @app.get("/widget.js")
 def widget() -> FileResponse:
     return FileResponse(_WIDGET, media_type="application/javascript")
+
+
+@app.get("/demo")
+def demo() -> FileResponse:
+    return FileResponse(_DEMO, media_type="text/html")
 
 
 @app.post("/ask", response_model=AvaResponse)
@@ -48,24 +54,44 @@ def ask(req: AskRequest) -> AvaResponse:
     return _mock(req)
 
 
+def _best_blocked(req: AskRequest):
+    """Pick the blocked element most relevant to the question (stem match),
+    falling back to the first blocked element."""
+    blocked = blocked_elements(req.dom)
+    if not blocked:
+        return None
+    qwords = [
+        w
+        for w in re.findall(r"[a-zàâçéèêëîïôûùü0-9]+", req.question.lower())
+        if len(w) > 2
+    ]
+    best_score, best = 0, blocked[0]
+    for e in blocked:
+        hay = f"{e.label or ''} {e.selector} {e.text or ''}".lower()
+        score = sum(1 for w in qwords if w[:5] in hay)
+        if score > best_score:
+            best_score, best = score, e
+    return best
+
+
 def _mock(req: AskRequest) -> AvaResponse:
     """Deterministic, no-LLM answer so the widget loop works before any creds.
-    Still 'smart': combines DOM analysis with doc retrieval."""
+    Also the live fallback if the crew errors. Combines DOM analysis + doc retrieval."""
     docs = retrieve(req.tenant_id, req.question, k=1)
     hint = f" (voir : {docs[0].title})" if docs else ""
-    blocked = blocked_elements(req.dom)
-    if blocked:
-        e = blocked[0]
-        name = e.label or e.text or "cet élément"
-        reason = e.error or "il est désactivé tant qu'une condition n'est pas remplie"
+    target = _best_blocked(req)
+    if target is not None:
+        name = target.label or target.text or "cet élément"
+        reason = target.error or "il est désactivé tant qu'une condition n'est pas remplie"
         return AvaResponse(
             speech=f"« {name} » est bloqué parce que {reason}.{hint}",
-            highlight_selector=e.selector,
+            highlight_selector=target.selector,
             next_step=f"Corrige « {name} » et il s'activera.",
             source="mock",
         )
     return AvaResponse(
-        speech="Je ne détecte pas de blocage ici. Dis-moi ce que tu veux faire et je te guide." + hint,
+        speech="Je ne détecte pas de blocage ici. Dis-moi ce que tu veux faire et je te guide."
+        + hint,
         highlight_selector=None,
         next_step=docs[0].title if docs else None,
         source="mock",

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lyvica — Éditeur</title>
+    <style>
+      :root {
+        --bg: #f4f5f7;
+        --card: #ffffff;
+        --border: #e3e6ea;
+        --text: #1c2024;
+        --muted: #6b7280;
+        --brand: #0ea5e9;
+        --danger: #dc2626;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      /* top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 56px;
+        padding: 0 20px;
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+      }
+      .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
+      .brand .dot { width: 22px; height: 22px; border-radius: 6px; background: var(--brand); }
+      .topbar-actions { display: flex; align-items: center; gap: 10px; }
+      .btn {
+        height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border);
+        background: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+      .btn:disabled {
+        opacity: .55; cursor: not-allowed; background: #c9ced6; color: #6b7280; border-color: #c9ced6;
+      }
+      .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+      /* sidebar */
+      .sidebar { background: var(--card); border-right: 1px solid var(--border); padding: 16px 12px; }
+      .nav-item { padding: 9px 12px; border-radius: 8px; font-size: 14px; color: var(--muted); cursor: pointer; }
+      .nav-item.active { background: #eef6fd; color: var(--brand); font-weight: 600; }
+      /* main */
+      .main { padding: 32px; }
+      .panel {
+        background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+        padding: 24px; max-width: 620px; margin-bottom: 20px;
+      }
+      .panel h2 { margin: 0 0 4px; font-size: 18px; }
+      .panel p.sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+      label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+      .field { display: flex; gap: 10px; }
+      .input {
+        flex: 1; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .input[aria-invalid="true"] { border-color: var(--danger); background: #fff5f5; }
+      .error { color: var(--danger); font-size: 13px; margin-top: 6px; }
+      .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-top: 12px; }
+      .status .pill { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+      .callout {
+        background: #fff8eb; border: 1px solid #fde9bf; color: #92600a; border-radius: 10px;
+        padding: 12px 14px; font-size: 13px; margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span> Lyvica</div>
+      <div class="topbar-actions">
+        <button class="btn" data-ava="preview-btn">Aperçu</button>
+        <button
+          class="btn btn-primary"
+          data-ava="publish-btn"
+          disabled
+          aria-disabled="true"
+          title="Connecte un domaine pour publier"
+        >
+          Publier
+        </button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="nav-item">Pages</div>
+        <div class="nav-item">Design</div>
+        <div class="nav-item active">Domaine</div>
+        <div class="nav-item">Facturation</div>
+      </aside>
+
+      <main class="main">
+        <div class="panel">
+          <h2>Réglages du domaine</h2>
+          <p class="sub">Connecte ton domaine pour pouvoir publier ton site.</p>
+
+          <label for="domain">Nom de domaine</label>
+          <div class="field">
+            <input
+              id="domain"
+              class="input"
+              data-ava="domain-input"
+              value="mon site .com"
+              aria-invalid="true"
+              aria-describedby="domain-err"
+            />
+            <button class="btn btn-primary" data-ava="connect-btn">Connecter</button>
+          </div>
+          <div class="error" id="domain-err">
+            Format de domaine invalide : retire les espaces (ex. monsite.com).
+          </div>
+
+          <div class="status"><span class="pill"></span> Statut : Non connecté</div>
+        </div>
+
+        <div class="panel">
+          <h2>Publication</h2>
+          <p class="sub">Mets ton site en ligne en un clic.</p>
+          <div class="callout">
+            Le bouton <strong>Publier</strong> est désactivé tant qu'aucun domaine n'est
+            connecté et qu'un plan payant n'est pas actif.
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Ava widget (served by the Ava backend) -->
+    <script
+      src="http://localhost:8000/widget.js"
+      data-tenant="lyvica"
+      data-endpoint="http://localhost:8000"
+    ></script>
+  </body>
+</html>
