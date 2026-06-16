@@ -35,9 +35,6 @@ const MARQUEE: { name: string; src?: string }[] = [
   { name: "CrewAI", src: "/logos/crewai.png" },
   { name: "TrueFoundry", src: "/logos/truefoundry.png" },
   { name: "Capgemini", src: "/logos/capgemini.png" },
-  { name: "FastAPI" },
-  { name: "Next.js" },
-  { name: "ElevenLabs" },
 ];
 
 const FEATURES = [
