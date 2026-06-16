@@ -79,12 +79,13 @@ Poser des `data-ava="..."` sur les éléments clés (boutons, champs) pour des s
 
 | Var | Rôle |
 |-----|------|
-| `AVA_LLM_BASE_URL` | endpoint TrueFoundry AI Gateway (OpenAI-compatible) |
-| `AVA_LLM_API_KEY`  | clé du gateway |
-| `AVA_LLM_MODEL`    | id du modèle (ex. `openai/claude-haiku`) |
+| `TFY_BASE_URL` | endpoint TrueFoundry AI Gateway (OpenAI-compatible) |
+| `TFY_API_KEY`  | TrueFoundry PAT / service-account token |
+| `MODEL_PRIMARY` | modèle primaire (ex. `aws-bedrock/us.anthropic.claude-sonnet-4-5-...`) |
+| `MODEL_FALLBACK_1` / `MODEL_FALLBACK_2` | chaîne de fallback (Sonnet → Opus → Nova) |
 | `AVA_DEEP_MODE`    | `true` = crew complet, `false` = lean |
 
-Sans `AVA_LLM_API_KEY`+`AVA_LLM_MODEL` → **mode mock** automatique.
+Sans `TFY_API_KEY`+`MODEL_PRIMARY` → **mode mock** automatique. Même convention que `lyvica-resilient-agent`.
 
 ## Milestones (hackathon)
 
