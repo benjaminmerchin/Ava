@@ -31,13 +31,13 @@ const SNIPPET = `<script
   data-endpoint="https://your-ava-host">
 </script>`;
 
-const PARTNERS = [
-  "CrewAI",
-  "TrueFoundry",
-  "Capgemini AIE",
-  "FastAPI",
-  "Next.js",
-  "ElevenLabs",
+const MARQUEE: { name: string; src?: string }[] = [
+  { name: "CrewAI", src: "/logos/crewai.png" },
+  { name: "TrueFoundry", src: "/logos/truefoundry.png" },
+  { name: "Capgemini", src: "/logos/capgemini.png" },
+  { name: "FastAPI" },
+  { name: "Next.js" },
+  { name: "ElevenLabs" },
 ];
 
 const FEATURES = [
@@ -205,15 +205,29 @@ export default function Home() {
         <p className="mb-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
           The production agent stack
         </p>
-        <Marquee pauseOnHover className="[--duration:28s]">
-          {PARTNERS.map((p) => (
-            <span
-              key={p}
-              className="mx-8 text-lg font-medium text-muted-foreground/80"
-            >
-              {p}
-            </span>
-          ))}
+        <Marquee pauseOnHover className="[--duration:30s]">
+          {MARQUEE.map((m) =>
+            m.src ? (
+              <div
+                key={m.name}
+                className="mx-5 flex h-14 items-center rounded-xl bg-white px-6 shadow-sm ring-1 ring-black/5"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={m.src}
+                  alt={m.name}
+                  className="h-7 w-auto object-contain"
+                />
+              </div>
+            ) : (
+              <span
+                key={m.name}
+                className="mx-8 flex h-14 items-center text-lg font-medium text-muted-foreground/70"
+              >
+                {m.name}
+              </span>
+            )
+          )}
         </Marquee>
       </div>
 
