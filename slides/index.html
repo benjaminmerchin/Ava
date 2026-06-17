@@ -69,6 +69,8 @@
       .pillar ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
       .pillar li { color: var(--muted); font-size: 1rem; line-height: 1.4; padding-left: 22px; position: relative; }
       .pillar li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+      .pillar .used { font-size: .76rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent2); font-weight: 600; margin-bottom: 12px; }
+      .pillar code { font-family: ui-monospace, monospace; font-size: .85em; background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 5px; }
       .strip {
         margin-top: 28px; max-width: 1000px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
         color: var(--muted); font-size: 0.95rem;
@@ -118,6 +120,7 @@
           <div class="card"><div class="ico">🎯</div><h3>Not precise</h3><p>Generic answers — the bot has no idea what's on <i>your</i> screen.</p></div>
           <div class="card"><div class="ico">🕰️</div><h3>Out of date</h3><p>Trained months ago, not on your product as it is today.</p></div>
           <div class="card"><div class="ico">🧊</div><h3>Cold</h3><p>Robotic, text-only. Nothing like talking to a person.</p></div>
+          <div class="card" style="grid-column:1/-1"><div class="ico">🚪</div><h3>On the website, not in the app</h3><p>Chat assistants sit on the marketing site to win signups — then vanish inside the product, exactly where users actually get stuck.</p></div>
         </div>
         <div class="kicker">Users get stuck on a <b>greyed-out button</b> — and churn.</div>
       </section>
@@ -129,18 +132,22 @@
         <div class="build">
           <div class="pillar">
             <img class="logo chip" src="crewai.png" alt="CrewAI" />
+            <div class="used">What we used</div>
             <ul>
-              <li>Multi-agent crew: <b>Perception ∥ Knowledge → Guide</b></li>
-              <li>Specialized agents, one reliable answer</li>
-              <li>Lean mode for live latency · deep mode for orchestration</li>
+              <li><b>3-agent crew</b>: Perception ∥ Knowledge → Guide (+ a lean 1-agent fast path)</li>
+              <li><b>Tool calling</b> — a <code>doc_search</code> RAG tool over the product docs</li>
+              <li><b>Structured output</b> (<code>output_pydantic</code>): {speech · highlight · next_step}</li>
+              <li><b>Parallel tasks</b> — Perception &amp; Knowledge run at once</li>
             </ul>
           </div>
           <div class="pillar">
             <img class="logo chip" src="truefoundry.png" alt="TrueFoundry" />
+            <div class="used">What we used</div>
             <ul>
-              <li>Every LLM call via the <b>AI Gateway → AWS Bedrock</b></li>
-              <li>Model fallbacks (Nova / Claude) + guardrails</li>
-              <li>Full observability — every agent call traced</li>
+              <li><b>AI Gateway</b> — every LLM call routes through it</li>
+              <li><b>Multi-provider</b> — Claude + Amazon Nova behind one endpoint</li>
+              <li><b>Fallback chain + retries</b> — survives model gating / outages</li>
+              <li><b>Observability</b> — every agent call traced in the dashboard</li>
             </ul>
           </div>
         </div>
