@@ -26,6 +26,8 @@ _HERE = os.path.dirname(__file__)
 _WIDGET = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-widget.js"))
 _DEMO = os.path.normpath(os.path.join(_HERE, "..", "..", "demo", "lyvica.html"))
 _FACE = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-face.jpg"))
+_AVATAR_HTML = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "avatar.html"))
+_AVATAR_GLB = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-avatar.glb"))
 
 
 @app.get("/health")
@@ -46,6 +48,16 @@ def demo() -> FileResponse:
 @app.get("/ava-face.jpg")
 def ava_face() -> FileResponse:
     return FileResponse(_FACE, media_type="image/jpeg")
+
+
+@app.get("/avatar")
+def avatar() -> FileResponse:
+    return FileResponse(_AVATAR_HTML, media_type="text/html")
+
+
+@app.get("/ava-avatar.glb")
+def avatar_glb() -> FileResponse:
+    return FileResponse(_AVATAR_GLB, media_type="model/gltf-binary")
 
 
 @app.post("/ask", response_model=AvaResponse)
