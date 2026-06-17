@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ava — Crew Inspector</title>
+    <style>
+      :root { --bg:#07070b; --fg:#ececf2; --muted:#9aa0b0; --accent:#7c5cff; --accent2:#a78bfa; --card:#111119; --border:rgba(255,255,255,.08); }
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:28px 32px; }
+      h1 { font-size:1.5rem; display:flex; align-items:center; gap:10px; }
+      .sub { color:var(--muted); font-size:.9rem; margin:4px 0 22px; }
+      .q { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-bottom:8px; }
+      .q .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--accent2); font-weight:600; }
+      .q .text { font-size:1.15rem; margin-top:4px; }
+      .badges { display:flex; gap:8px; margin:14px 0 22px; flex-wrap:wrap; }
+      .badge { font-size:.78rem; font-family:ui-monospace,monospace; border-radius:999px; padding:4px 12px; border:1px solid var(--border); color:var(--muted); }
+      .badge.ok { color:var(--accent2); border-color:rgba(124,92,255,.4); background:rgba(124,92,255,.1); }
+      .badge.warn { color:#fbbf24; border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.1); }
+      .flow { display:flex; align-items:stretch; gap:14px; flex-wrap:wrap; }
+      .agent { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; flex:1; min-width:240px; }
+      .agent h3 { font-size:1rem; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+      .agent .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); }
+      .agent pre { white-space:pre-wrap; word-break:break-word; font-size:.82rem; line-height:1.5; color:#cfcfda; max-height:260px; overflow:auto; }
+      .arrow { align-self:center; color:var(--accent); font-size:1.6rem; }
+      .answer { margin-top:24px; background:linear-gradient(150deg,rgba(124,92,255,.14),transparent); border:1px solid rgba(124,92,255,.3); border-radius:14px; padding:18px 20px; }
+      .answer h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; color:var(--accent2); margin-bottom:8px; }
+      .answer .speech { font-size:1.1rem; }
+      .answer .meta { color:var(--muted); font-size:.85rem; margin-top:8px; font-family:ui-monospace,monospace; }
+      .empty { color:var(--muted); margin-top:40px; }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 Crew Inspector</h1>
+    <div class="sub">Live view of Ava's last multi-agent run · auto-refreshes</div>
+    <div id="root"><div class="empty">Waiting for a query… ask Ava something, then this shows the crew that answered.</div></div>
+
+    <script>
+      var root = document.getElementById("root");
+      function esc(s) { return (s || "").replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+
+      function render(d) {
+        if (!d || !d.question) return;
+        var agents = d.agents || [];
+        var flow = agents.map(function (a, i) {
+          var card = '<div class="agent"><h3><span class="dot"></span>' + esc(a.agent) + "</h3><pre>" + esc(a.output) + "</pre></div>";
+          return i < agents.length - 1 ? card + '<div class="arrow">→</div>' : card;
+        }).join("");
+        var ans = d.answer || {};
+        root.innerHTML =
+          '<div class="q"><div class="label">User question</div><div class="text">' + esc(d.question) + "</div></div>" +
+          '<div class="badges">' +
+          '<span class="badge ' + (d.mode === "deep" ? "ok" : "") + '">mode: ' + esc(d.mode) + (d.mode === "deep" ? " (3 agents)" : " (1 agent)") + "</span>" +
+          '<span class="badge ok">model: ' + esc(d.model) + "</span>" +
+          (d.fell_back ? '<span class="badge warn">⚡ failed over (TrueFoundry fallback)</span>' : '<span class="badge">no fallback needed</span>') +
+          "</div>" +
+          '<div class="flow">' + flow + "</div>" +
+          '<div class="answer"><h3>Ava\'s structured answer</h3>' +
+          '<div class="speech">' + esc(ans.speech) + "</div>" +
+          '<div class="meta">highlight: ' + esc(ans.highlight_selector || "null") + "  ·  next: " + esc(ans.next_step || "null") + "</div></div>";
+      }
+
+      function poll() {
+        fetch("/last-run").then(function (r) { return r.json(); }).then(render).catch(function () {});
+      }
+      poll();
+      setInterval(poll, 1500);
+    </script>
+  </body>
+</html>

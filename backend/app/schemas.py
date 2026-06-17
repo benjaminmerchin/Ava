@@ -27,6 +27,8 @@ class AskRequest(BaseModel):
     dom: DomSnapshot = Field(default_factory=DomSnapshot)
     history: list[dict[str, str]] = Field(default_factory=list)
     screenshot: Optional[str] = None  # base64, vision fallback (optional)
+    inject_fail: bool = False  # demo: force the primary model to fail (show the fallback live)
+    deep: Optional[bool] = None  # force the 3-agent crew for this request (else AVA_DEEP_MODE)
 
 
 class AvaResponse(BaseModel):
@@ -36,6 +38,8 @@ class AvaResponse(BaseModel):
     highlight_selector: Optional[str] = None
     next_step: Optional[str] = None
     source: str = "crew"  # "crew" | "mock" | "fallback"
+    model: Optional[str] = None  # which gateway model answered
+    fell_back: bool = False  # true if the primary model failed and we failed over
 
 
 class TtsRequest(BaseModel):

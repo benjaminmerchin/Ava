@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import trace
 from .config import settings
 from .dom import blocked_elements
 from .rag import retrieve
@@ -30,6 +31,7 @@ _DEMO = os.path.normpath(os.path.join(_HERE, "..", "..", "demo", "lyvica.html"))
 _FACE = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-face.jpg"))
 _AVATAR_HTML = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "avatar.html"))
 _AVATAR_GLB = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-avatar.glb"))
+_INSPECT = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "inspect.html"))
 _SLIDES = os.path.normpath(os.path.join(_HERE, "..", "..", "slides"))
 
 if os.path.isdir(_SLIDES):
@@ -42,6 +44,7 @@ def health() -> dict:
         "status": "ok",
         "mode": "crew" if settings.has_llm else "mock",
         "tts": settings.has_tts,
+        "model": settings.model_primary,
     }
 
 
@@ -68,6 +71,17 @@ def avatar() -> FileResponse:
 @app.get("/ava-avatar.glb")
 def avatar_glb() -> FileResponse:
     return FileResponse(_AVATAR_GLB, media_type="model/gltf-binary")
+
+
+@app.get("/inspect")
+def inspect() -> FileResponse:
+    """Live view of the last multi-agent crew run."""
+    return FileResponse(_INSPECT, media_type="text/html")
+
+
+@app.get("/last-run")
+def last_run() -> dict:
+    return trace.get()
 
 
 @app.post("/tts")
@@ -101,7 +115,8 @@ def ask(req: AskRequest) -> AvaResponse:
         try:
             from .ava_crew import run_ava
 
-            return run_ava(req, deep=settings.deep_mode)
+            deep = req.deep if req.deep is not None else settings.deep_mode
+            return run_ava(req, deep=deep)
         except Exception as exc:  # never let the live demo 500
             print(f"[ava] crew failed, falling back to mock: {exc}")
     return _mock(req)

@@ -1,15 +1,15 @@
-"""Ava's runtime crew, two modes:
+"""Ava's runtime crew (LEAN default / DEEP), with a TrueFoundry model fallback chain.
 
-- LEAN (default, live demo): one agent, one LLM call. DOM analysis + doc retrieval
-  are done deterministically in Python and injected — fast (~one round-trip).
-- DEEP (AVA_DEEP_MODE=true): Perception ∥ Knowledge → Guide, a real 3-agent crew.
-
-Both return the strict structured response Ava speaks (in English).
+Every model in the chain is served through the TrueFoundry gateway; if one fails
+(gated, rate-limited, down) we fail over to the next. On total failure the API
+falls back to the deterministic mock. Each run is recorded for the /inspect view.
 """
 from __future__ import annotations
 
 from crewai import Agent, Crew, Process, Task
 
+from . import trace
+from .config import settings
 from .dom import analyze_dom
 from .llm import get_llm
 from .rag import retrieve
@@ -32,9 +32,9 @@ _OUTPUT_SPEC = (
 )
 
 
-def _lean_crew(req: AskRequest) -> Crew:
+def _lean_crew(req: AskRequest, model: str) -> Crew:
     """One agent, one LLM call — context injected for low latency."""
-    llm = get_llm()
+    llm = get_llm(model)
     state = analyze_dom(req.dom, req.question)
     docs = retrieve(req.tenant_id, req.question, k=3)
     doc_text = (
@@ -61,26 +61,26 @@ def _lean_crew(req: AskRequest) -> Crew:
     return Crew(agents=[ava], tasks=[task], process=Process.sequential, verbose=False)
 
 
-def _deep_crew(req: AskRequest) -> Crew:
+def _deep_crew(req: AskRequest, model: str) -> Crew:
     """Perception ∥ Knowledge → Guide — real 3-agent orchestration."""
-    llm = get_llm(deep=True)
+    llm = get_llm(model)
     state = analyze_dom(req.dom, req.question)
     doc_tool = make_doc_search_tool(req.tenant_id)
 
     perception = Agent(
-        role="State Reader",
+        role="Perception",
         goal="Diagnose the interface state and which element matches the user's goal.",
         backstory="An expert that reads the DOM state to understand the app's business logic.",
         llm=llm, verbose=False, allow_delegation=False,
     )
     knowledge = Agent(
-        role="Doc Expert",
+        role="Knowledge",
         goal="Find the steps and rules in the product docs relevant to the question.",
         backstory="Knows the product documentation and which section answers each situation.",
         llm=llm, tools=[doc_tool], verbose=False, allow_delegation=False,
     )
     guide = Agent(
-        role="Coach", goal="Guide the user step by step, in English.",
+        role="Guide", goal="Guide the user step by step, in English.",
         backstory=_GUIDE_BACKSTORY, llm=llm, verbose=False, allow_delegation=False,
     )
 
@@ -113,19 +113,60 @@ def _deep_crew(req: AskRequest) -> Crew:
     )
 
 
-def run_ava(req: AskRequest, deep: bool = False) -> AvaResponse:
-    crew = _deep_crew(req) if deep else _lean_crew(req)
-    result = crew.kickoff()
-
+def _to_response(result) -> AvaResponse:
     out = getattr(result, "pydantic", None)
     if isinstance(out, AvaResponse):
-        out.source = "crew"
         return out
-
     raw = getattr(result, "json_dict", None) or {}
     return AvaResponse(
         speech=raw.get("speech") or str(result),
         highlight_selector=raw.get("highlight_selector"),
         next_step=raw.get("next_step"),
-        source="crew",
     )
+
+
+def _record(req: AskRequest, result, model: str, resp: AvaResponse, deep: bool) -> None:
+    trace.record(
+        {
+            "question": req.question,
+            "mode": "deep" if deep else "lean",
+            "model": model,
+            "fell_back": resp.fell_back,
+            "agents": [
+                {
+                    "agent": getattr(to, "agent", None) or "Agent",
+                    "output": (getattr(to, "raw", None) or str(to))[:1400],
+                }
+                for to in (getattr(result, "tasks_output", None) or [])
+            ],
+            "answer": {
+                "speech": resp.speech,
+                "highlight_selector": resp.highlight_selector,
+                "next_step": resp.next_step,
+            },
+        }
+    )
+
+
+def run_ava(req: AskRequest, deep: bool = False) -> AvaResponse:
+    """Try each model in the TrueFoundry chain; fail over to the next on error."""
+    chain = settings.model_chain or ([settings.model_primary] if settings.model_primary else [])
+    if req.inject_fail:  # demo hook: force a failover to show resilience live
+        chain = ["anthropic/__force_fail__", *chain]
+    last_err: Exception | None = None
+    for i, model in enumerate(chain):
+        try:
+            crew = _deep_crew(req, model) if deep else _lean_crew(req, model)
+            result = crew.kickoff()
+            resp = _to_response(result)
+            resp.source = "crew"
+            resp.model = model
+            resp.fell_back = i > 0
+            _record(req, result, model, resp, deep)
+            if i > 0:
+                print(f"[ava] primary failed → answered by fallback: {model}")
+            return resp
+        except Exception as e:  # noqa: BLE001 — try the next model in the chain
+            last_err = e
+            print(f"[ava] model {model!r} failed: {type(e).__name__}: {str(e)[:160]} — trying next")
+    raise last_err or RuntimeError("no models in chain")

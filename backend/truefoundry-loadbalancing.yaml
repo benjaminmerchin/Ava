@@ -1,0 +1,34 @@
+# TrueFoundry AI Gateway — Ava fallback (priority-based routing).
+# The gateway does the failover server-side: the client calls ONE model name
+# ("ava-router") and the gateway tries Opus → Sonnet → Haiku, with retries.
+#
+# Isolated on purpose: matching a virtual model "ava-router" (not the shared
+# "anthropic/claude-opus-4-8") so this rule only affects Ava, not your other apps.
+#
+# Apply it:   tfy apply -f backend/truefoundry-loadbalancing.yaml
+# (or paste it in the TF dashboard → AI Gateway → Load balancing / Config)
+#
+# Then set Ava's MODEL_PRIMARY=ava-router and the fallback is 100% on TrueFoundry.
+name: ava-loadbalancing
+type: gateway-load-balancing-config
+rules:
+  - id: ava-priority-failover
+    type: priority-based-routing
+    when:
+      models:
+        - ava-router
+    load_balance_targets:
+      - target: anthropic/claude-opus-4-8
+        priority: 0
+        fallback_status_codes: ["404", "429", "500", "502", "503"]
+        retry_config:
+          attempts: 2
+          delay: 200
+      - target: anthropic/claude-sonnet-4-5
+        priority: 1
+        fallback_status_codes: ["404", "429", "500", "502", "503"]
+        retry_config:
+          attempts: 2
+          delay: 200
+      - target: anthropic/claude-haiku-4-5
+        priority: 2

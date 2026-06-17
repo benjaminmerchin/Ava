@@ -99,6 +99,15 @@
       .tags { display: flex; flex-wrap: wrap; gap: 8px; }
       .tag { background: rgba(124, 92, 255, 0.1); border: 1px solid rgba(124, 92, 255, 0.28); color: #cbb8ff; border-radius: 999px; padding: 4px 11px; font-size: 0.82rem; font-weight: 500; }
 
+      /* proof / code slide */
+      .proof { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 30px; max-width: 1050px; }
+      .codecard { background: #0d0d14; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+      .codehead { background: rgba(124, 92, 255, 0.12); color: var(--accent2); font-size: 0.8rem; font-weight: 600; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+      .codecard pre { margin: 0; padding: 14px; font-family: ui-monospace, monospace; font-size: 0.7rem; line-height: 1.5; color: #d7d7e3; overflow: auto; max-height: 250px; white-space: pre; }
+      .links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+      .links span { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 15px; font-size: 0.88rem; font-family: ui-monospace, monospace; }
+      .links b { color: var(--accent2); }
+
       /* chrome */
       .footer {
         position: fixed; bottom: 22px; left: 0; right: 0; z-index: 2;
@@ -224,6 +233,44 @@
               <span class="tag">eval 12/12</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- 5 — PROOF / CODE -->
+      <section class="slide">
+        <div class="eyebrow">Proof · show me the code</div>
+        <h1>Not just slides — <span class="grad">real code.</span></h1>
+        <div class="proof">
+          <div class="codecard">
+            <div class="codehead">CrewAI · multi-agent crew</div>
+            <pre># Perception ∥ Knowledge  →  Guide
+crew = Crew(
+  agents=[perception, knowledge, guide],
+  tasks=[t_perception, t_knowledge, t_guide],
+  process=Process.sequential,   # async ∥, then Guide
+)
+
+# every call → the TrueFoundry gateway
+LLM(model="openai/anthropic/claude-opus-4-8",
+    base_url=TFY_BASE_URL, api_key=TFY_API_KEY)</pre>
+          </div>
+          <div class="codecard">
+            <div class="codehead">TrueFoundry · gateway fallback (server-side)</div>
+            <pre>type: gateway-load-balancing-config
+rules:
+- type: priority-based-routing
+  when: { models: [ava-router] }
+  load_balance_targets:
+  - target: anthropic/claude-opus-4-8    # priority 0
+    fallback_status_codes: ["404","429","500"]
+  - target: anthropic/claude-sonnet-4-5  # priority 1
+  - target: anthropic/claude-haiku-4-5   # priority 2</pre>
+          </div>
+        </div>
+        <div class="links">
+          <span>📦 <b>github.com/benjaminmerchin/Ava</b></span>
+          <span>🔍 <b>:8000/inspect</b> — live crew run</span>
+          <span>▶ <b>:3001</b> — live demo</span>
         </div>
       </section>
     </div>
