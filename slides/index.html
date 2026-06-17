@@ -92,6 +92,13 @@
       .launch:hover { transform: translateY(-2px); box-shadow: 0 18px 50px rgba(124, 92, 255, 0.65); }
       .url { margin-top: 16px; color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.9rem; }
 
+      /* tech stack slide */
+      .stack { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 36px; max-width: 1000px; }
+      .stackcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px 22px; }
+      .stackcard h3 { font-size: 1.05rem; margin-bottom: 14px; }
+      .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+      .tag { background: rgba(124, 92, 255, 0.1); border: 1px solid rgba(124, 92, 255, 0.28); color: #cbb8ff; border-radius: 999px; padding: 4px 11px; font-size: 0.82rem; font-weight: 500; }
+
       /* chrome */
       .footer {
         position: fixed; bottom: 22px; left: 0; right: 0; z-index: 2;
@@ -165,6 +172,59 @@
           points you to the exact fix, and talks you through it.</p>
         <a class="launch" href="http://localhost:3001" target="_blank" rel="noopener">▶ Launch the live demo</a>
         <div class="url">localhost:3001 · ask Ava “why can't I publish?”</div>
+      </section>
+
+      <!-- 4 — TECH STACK (bonus) -->
+      <section class="slide">
+        <div class="eyebrow">Bonus · Tech stack</div>
+        <h1>Under the <span class="grad">hood.</span></h1>
+        <div class="stack">
+          <div class="stackcard">
+            <h3>🧠 Agent &amp; backend</h3>
+            <div class="tags">
+              <span class="tag">FastAPI</span>
+              <span class="tag">CrewAI</span>
+              <span class="tag">litellm</span>
+              <span class="tag">TrueFoundry AI Gateway</span>
+              <span class="tag">Claude Opus 4.8</span>
+              <span class="tag">RAG · per-tenant docs</span>
+              <span class="tag">Docker</span>
+            </div>
+          </div>
+          <div class="stackcard">
+            <h3>🧩 In-app widget</h3>
+            <div class="tags">
+              <span class="tag">Vanilla JS</span>
+              <span class="tag">1-line &lt;script&gt;</span>
+              <span class="tag">live DOM capture</span>
+              <span class="tag">stable selectors · data-ava</span>
+              <span class="tag">CSS highlight + animated pointer</span>
+            </div>
+          </div>
+          <div class="stackcard">
+            <h3>🗣️ Avatar &amp; voice</h3>
+            <div class="tags">
+              <span class="tag">Three.js · WebGL</span>
+              <span class="tag">Ready Player Me GLB</span>
+              <span class="tag">ARKit + Oculus visemes</span>
+              <span class="tag">Web Audio amplitude lip-sync</span>
+              <span class="tag">ElevenLabs TTS</span>
+              <span class="tag">Web Speech fallback</span>
+            </div>
+          </div>
+          <div class="stackcard">
+            <h3>🎨 Landing &amp; infra</h3>
+            <div class="tags">
+              <span class="tag">Next.js 16</span>
+              <span class="tag">Tailwind v4</span>
+              <span class="tag">shadcn/ui</span>
+              <span class="tag">Magic UI</span>
+              <span class="tag">Vercel</span>
+              <span class="tag">GitHub</span>
+              <span class="tag">eval 12/12</span>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 
