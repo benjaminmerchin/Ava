@@ -1,96 +1,112 @@
 # Ava
 
-**Agent de support embarqué dans un SaaS** qui comprend *l'état de l'interface* (le DOM, pas les pixels) et guide l'utilisateur pas à pas — par la voix (avatar) et le texte.
+> **The support agent that understands your app's _state_ — not just its pixels.**
+> Ava is embedded in a SaaS, reads the live DOM, knows _why_ an element is blocked,
+> and guides the user by voice + text — step by step.
 
-Différenciateur : Ava sait *pourquoi* un élément est bloqué (« le bouton Publier est grisé parce qu'aucun domaine n'est connecté »), grâce à la lecture du DOM + un RAG sur la doc produit.
+_Built for the **Capgemini AIE × TrueFoundry × CrewAI** hackathon — "From Prototype to Production: Real-World AI Agents."_
 
-Ava est une **plateforme** : un seul déploiement sert plusieurs *tenants*. Lyvica est le premier tenant — il colle un `<script>` et Ava tourne en prod chez lui.
+---
 
-## Architecture
+## The problem
 
-```
-        ┌──────────────────────────────────────────┐
-        │  Ava (plateforme, déployée TrueFoundry)   │
-        │                                            │
-        │   POST /ask  ──►  Crew CrewAI              │
-        │                   ┌─ Perception ─┐         │
-        │                   │ (DOM state)  ├─► Guide │──► {speech, highlight_selector, next_step}
-        │                   └─ Knowledge ──┘         │
-        │                     (RAG doc)              │
-        │   Tous les LLM via le TrueFoundry Gateway  │
-        └────────────────────▲───────────────────────┘
-                             │  widget.js (vanilla)
-        ┌────────────────────┴───────────────────────┐
-        │  Lyvica (tenant) — <script data-tenant>     │
-        └──────────────────────────────────────────────┘
-```
+Generic support chatbots don't know your app. They see text, not state. They can't tell a
+user that **Publish** is greyed out _because no domain is connected_. Ava can — it reads the
+interface state, maps it to your product docs, and answers the real question: **why is this blocked?**
 
-- **Plan runtime (hot path)** : crew CrewAI à 3 agents. Perception ∥ Knowledge en parallèle, puis Guide. ~2 appels de latence.
-- **Plan production** : crew d'ingestion (RAG) + crew d'éval (`backend/eval/`). Déploiement + observabilité via TrueFoundry.
-- **Mode mock** : si aucune clé LLM n'est configurée, `/ask` répond de façon déterministe (DOM + doc) — la boucle widget marche sans creds.
+## What it does
 
-## Structure
+The user asks (voice or text) → Ava reads the page's interactive state (disabled buttons,
+validation errors, ARIA) → a **CrewAI** crew reasons over the state + a RAG retrieval of the
+product docs → Ava returns a strict structured answer and **highlights the element to fix**:
 
-```
-backend/        FastAPI + crew CrewAI
-  app/
-    main.py       POST /ask, /health, /widget.js  (+ fallback mock)
-    schemas.py    contrat structuré (AskRequest, AvaResponse)
-    ava_crew.py   crew runtime: Perception ∥ Knowledge → Guide
-    tools.py      tools CrewAI (doc_search / RAG)
-    dom.py        analyse DOM déterministe (état bloqué)
-    rag.py        retriever doc par tenant (TODO: pgvector)
-    llm.py        LLM via TrueFoundry Gateway
-    tenants.py    config par tenant
-  eval/           crew d'éval (le "production")
-widget/
-  ava-widget.js   widget injectable (capture DOM, /ask, surlignage, hook voix)
-docs/lyvica/      doc produit du tenant (corpus RAG)
+```json
+{ "speech": "« Publier » est désactivé car le format du domaine est invalide.",
+  "highlight_selector": "[data-ava=domain-input]",
+  "next_step": "Corrige le domaine (sans espaces, ex. monsite.com) et il s'activera." }
 ```
 
-## Lancer en local
+Note: it highlights the **root cause** (the domain field), not just the disabled button — that's the multi-agent reasoning.
+
+## Try it (local, ~30s)
 
 ```bash
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env        # laisser vide => mode mock
-uvicorn app.main:app --reload --port 8000
+# backend (FastAPI + CrewAI)
+cd backend && uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
+cp .env.example .env        # add TrueFoundry gateway creds, or leave empty for mock mode
+.venv/bin/uvicorn app.main:app --port 8000
+# open the demo
+open http://localhost:8000/demo     # mock "Lyvica" with blocked states + the Ava widget
 ```
 
-Tester :
-```bash
-curl -s localhost:8000/ask -H 'content-type: application/json' -d '{
-  "tenant_id":"lyvica","question":"Pourquoi je ne peux pas publier ?",
-  "dom":{"url":"/publish","elements":[
-    {"selector":"[data-ava=publish-btn]","label":"Publier","disabled":true},
-    {"selector":"[data-ava=domain-input]","label":"Domaine","error":"Aucun domaine connecté"}]}}'
+Ask _"pourquoi je ne peux pas publier ?"_ → watch Ava explain and highlight.
+
+## How it works
+
+```
+        ┌──────────────────────── Ava (FastAPI) ─────────────────────────┐
+ DOM  ──►│  /ask  →  CrewAI crew                                          │──►  { speech,
+ state  │           lean: 1 agent (~2-5s, live demo)                      │      highlight_selector,
+ +Q     │           deep: Perception ∥ Knowledge → Guide (orchestration)  │      next_step }
+        │           every LLM call → TrueFoundry AI Gateway → Bedrock     │
+        │           deterministic mock fallback (never 500s live)         │
+        └─────────────────────────────────────────────────────────────────┘
+              ▲ widget.js (vanilla, injectable)         ▲ RAG over product docs
 ```
 
-## Embed (côté Lyvica)
+- **Lean mode** (default): DOM analysis + doc retrieval done in Python, injected into one agent → fast for the live demo.
+- **Deep mode** (`AVA_DEEP_MODE=true`): a real 3-agent crew (Perception ∥ Knowledge → Guide) showcasing CrewAI orchestration.
 
-```html
-<script src="https://AVA_HOST/widget.js" data-tenant="lyvica" data-endpoint="https://AVA_HOST"></script>
+## Built on TrueFoundry + CrewAI
+
+- **CrewAI** runs the agent crew (lean + deep). Strict structured output via `output_pydantic`.
+- **TrueFoundry AI Gateway** — _every_ LLM call routes through it (OpenAI-compatible → AWS Bedrock),
+  so cost/latency/traces are observable in the TF dashboard, with model fallbacks and guardrails.
+  Same gateway + fallback convention as our `lyvica-resilient-agent`. Currently serving **Amazon Nova**
+  (Anthropic Claude is the configured fallback but gated on the demo Bedrock account — the exact
+  "resilience" scenario the gateway is built for).
+
+## Reliability & evaluation
+
+`backend/eval/` replays fixed Lyvica scenarios against `/ask` and scores every answer
+(answered · correct highlight · grounded in the right reason). Runs against mock, the live crew,
+or prod (`AVA_URL=...`):
+
+```
+  Ava reliability eval — http://localhost:8000  (4 scenarios)   mode: crew
+  answered 4/4 (100%)   selector 4/4 (100%)   grounded 4/4 (100%)   overall 12/12 (100%)
 ```
 
-Poser des `data-ava="..."` sur les éléments clés (boutons, champs) pour des sélecteurs stables.
+## How it maps to the judging criteria
 
-## Config (`.env`)
+| Criterion | In Ava |
+|---|---|
+| **Real-world use case** | Embedded SaaS support — a real product (Lyvica), a real failure (users stuck on blocked states). |
+| **Reliability / eval / iteration** | Scored eval harness (12/12), deterministic mock fallback, lean/deep modes to iterate latency vs depth. |
+| **Governance / safe deployment** | All LLM calls governed by the TF gateway (fallbacks, traces); Ava **highlights & explains, never clicks** for the user. |
+| **Multi-agent orchestration** | CrewAI crew: Perception ∥ Knowledge → Guide, with tool-using RAG. |
 
-| Var | Rôle |
+## Project structure
+
+```
+backend/   FastAPI + CrewAI  (app/ = ask, crew, dom, rag, llm, tools; eval/ = scoreboard; Dockerfile)
+widget/    ava-widget.js     vanilla injectable widget (DOM capture, highlight, voice hook)
+docs/      per-tenant RAG corpus (markdown)
+demo/      lyvica.html       self-contained mock app to demo the loop locally
+web/       Next.js landing    (Tailwind + shadcn + Magic UI)
+```
+
+## Config (`backend/.env`)
+
+| Var | Role |
 |-----|------|
-| `TFY_BASE_URL` | endpoint TrueFoundry AI Gateway (OpenAI-compatible) |
-| `TFY_API_KEY`  | TrueFoundry PAT / service-account token |
-| `MODEL_PRIMARY` | modèle primaire (ex. `aws-bedrock/us.anthropic.claude-sonnet-4-5-...`) |
-| `MODEL_FALLBACK_1` / `MODEL_FALLBACK_2` | chaîne de fallback (Sonnet → Opus → Nova) |
-| `AVA_DEEP_MODE`    | `true` = crew complet, `false` = lean |
+| `TFY_BASE_URL` / `TFY_API_KEY` | TrueFoundry AI Gateway endpoint + token |
+| `MODEL_PRIMARY` · `MODEL_FALLBACK_1/2` | model + fallback chain (e.g. `aws-bedrock/us.amazon.nova-pro-v1-0`) |
+| `AVA_DEEP_MODE` | `true` = 3-agent crew, `false` = lean (default) |
 
-Sans `TFY_API_KEY`+`MODEL_PRIMARY` → **mode mock** automatique. Même convention que `lyvica-resilient-agent`.
+Empty creds → **mock mode** (deterministic, runs with no LLM).
 
-## Milestones (hackathon)
+## Status
 
-1. ✅ `/ask` structuré (mock + crew) — DOM mocké
-2. ⬜ Widget : capture DOM + question → réponse + surlignage
-3. ⬜ Crew d'éval (reliability / iteration)
-4. ⬜ Avatar voix (réutiliser le POC) — hook `window.AvaSpeak`
-5. ⬜ RAG réel + polish flows + fallbacks pré-enregistrés
+✅ Crew live through the TrueFoundry gateway · ✅ eval 12/12 · ✅ landing · ✅ local demo
+⬜ Deploy backend on TrueFoundry · ⬜ embed in production Lyvica · ⬜ voice avatar
