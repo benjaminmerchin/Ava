@@ -5,18 +5,24 @@
   var TENANT = (script && script.getAttribute("data-tenant")) || "lyvica";
   var ENDPOINT = (script && script.getAttribute("data-endpoint")) || "http://localhost:8000";
 
-  // ---------- styles ----------
+  // ---------- styles (self-contained: explicit colors so the host's dark theme can't leak in) ----------
   var css =
-    ".ava-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:#6c5ce7;color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:2147483000}" +
-    ".ava-panel{position:fixed;bottom:92px;right:24px;width:340px;max-height:60vh;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;z-index:2147483000;font-family:system-ui,-apple-system,sans-serif}" +
+    ".ava-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:#6c5ce7;color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:2147483000}" +
+    ".ava-panel{position:fixed;bottom:92px;right:24px;width:360px;max-height:64vh;background:#fff;color:#1c2024;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;flex-direction:column;overflow:hidden;z-index:2147483000;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}" +
     ".ava-panel.open{display:flex}" +
-    ".ava-head{background:#6c5ce7;color:#fff;padding:12px 16px;font-weight:600}" +
-    ".ava-body{padding:12px 16px;overflow-y:auto;flex:1;font-size:14px;color:#222}" +
-    ".ava-msg{margin:8px 0;line-height:1.45}" +
-    ".ava-next{color:#6c5ce7;font-size:13px;margin:2px 0 8px}" +
-    ".ava-foot{display:flex;border-top:1px solid #eee}" +
-    ".ava-input{flex:1;border:none;padding:12px;font-size:14px;outline:none}" +
-    ".ava-send{border:none;background:#6c5ce7;color:#fff;padding:0 16px;cursor:pointer;font-size:16px}" +
+    ".ava-head{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#6c5ce7,#8e7bff);color:#fff;padding:12px 16px}" +
+    ".ava-ava{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;overflow:hidden}" +
+    ".ava-ava img{width:100%;height:100%;object-fit:cover}" +
+    ".ava-title{font-weight:600;line-height:1.1}" +
+    ".ava-sub{font-size:11px;opacity:.85}" +
+    ".ava-body{padding:14px 16px;overflow-y:auto;flex:1;font-size:14px;color:#1c2024;background:#fff}" +
+    ".ava-msg{margin:8px 0;line-height:1.45;color:#1c2024}" +
+    ".ava-msg.user{text-align:right;color:#4b5563}" +
+    ".ava-next{color:#6c5ce7;font-size:13px;margin:2px 0 10px;font-weight:500}" +
+    ".ava-foot{display:flex;border-top:1px solid #ececf0;background:#fff}" +
+    ".ava-input{flex:1;border:none;padding:13px 14px;font-size:14px;outline:none;color:#1c2024;background:#fff}" +
+    ".ava-input::placeholder{color:#9aa0a6}" +
+    ".ava-send{border:none;background:#6c5ce7;color:#fff;padding:0 18px;cursor:pointer;font-size:16px}" +
     ".ava-highlight{outline:3px solid #6c5ce7 !important;outline-offset:2px;border-radius:4px}";
   var style = document.createElement("style");
   style.textContent = css;
@@ -31,9 +37,12 @@
   var panel = document.createElement("div");
   panel.className = "ava-panel";
   panel.innerHTML =
-    '<div class="ava-head">Ava</div>' +
-    '<div class="ava-body" id="ava-body"><div class="ava-msg">Bonjour 👋 Pose-moi une question sur cette page.</div></div>' +
-    '<div class="ava-foot"><input class="ava-input" id="ava-input" placeholder="Écris ta question…"/><button class="ava-send" id="ava-send">➤</button></div>';
+    '<div class="ava-head">' +
+    '<div class="ava-ava" id="ava-ava">A</div>' +
+    '<div><div class="ava-title">Ava</div><div class="ava-sub">Support assistant</div></div>' +
+    "</div>" +
+    '<div class="ava-body" id="ava-body"><div class="ava-msg">Hi 👋 Ask me anything about this page — I can see what\'s blocked and why.</div></div>' +
+    '<div class="ava-foot"><input class="ava-input" id="ava-input" placeholder="Type your question…"/><button class="ava-send" id="ava-send">➤</button></div>';
 
   document.body.appendChild(fab);
   document.body.appendChild(panel);
@@ -49,9 +58,9 @@
     if (e.key === "Enter") send();
   });
 
-  function addMsg(text, next) {
+  function addMsg(text, next, who) {
     var d = document.createElement("div");
-    d.className = "ava-msg";
+    d.className = "ava-msg" + (who === "user" ? " user" : "");
     d.textContent = text;
     body.appendChild(d);
     if (next) {
@@ -117,11 +126,15 @@
       current = null;
     }
     if (!sel) return;
-    var el = document.querySelector(sel);
-    if (el) {
-      el.classList.add("ava-highlight");
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      current = el;
+    try {
+      var el = document.querySelector(sel);
+      if (el) {
+        el.classList.add("ava-highlight");
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        current = el;
+      }
+    } catch (e) {
+      /* invalid selector — ignore */
     }
   }
 
@@ -129,8 +142,14 @@
   function send() {
     var q = input.value.trim();
     if (!q) return;
-    addMsg("🧑 " + q);
+    addMsg(q, null, "user");
     input.value = "";
+    var thinking = document.createElement("div");
+    thinking.className = "ava-msg";
+    thinking.textContent = "…";
+    body.appendChild(thinking);
+    body.scrollTop = body.scrollHeight;
+
     fetch(ENDPOINT + "/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,12 +164,14 @@
         return r.json();
       })
       .then(function (res) {
-        addMsg("🤖 " + (res.speech || "…"), res.next_step);
+        thinking.remove();
+        addMsg(res.speech || "…", res.next_step);
         highlight(res.highlight_selector);
         if (window.AvaSpeak) window.AvaSpeak(res.speech); // avatar TTS hook (milestone 4)
       })
       .catch(function () {
-        addMsg("🤖 Désolé, je n'ai pas pu répondre (backend injoignable).");
+        thinking.remove();
+        addMsg("Sorry, I couldn't reach the assistant backend.");
       });
   }
 

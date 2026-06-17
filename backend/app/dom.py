@@ -18,21 +18,21 @@ def analyze_dom(dom: DomSnapshot) -> str:
 
     blocked = blocked_elements(dom)
     if blocked:
-        lines.append("Éléments bloqués / en erreur:")
+        lines.append("Blocked / invalid elements:")
         for e in blocked:
             why = []
             if e.disabled:
-                why.append("désactivé")
+                why.append("disabled")
             if e.error:
-                why.append(f"erreur: {e.error}")
+                why.append(f"error: {e.error}")
             name = e.label or e.text or e.selector
             lines.append(f"  - {name} ({e.selector}) — {', '.join(why)}")
     else:
-        lines.append("Aucun élément bloqué détecté.")
+        lines.append("No blocked element detected.")
 
     actionable = [e for e in dom.elements if e.visible and not e.disabled][:15]
     if actionable:
-        lines.append("Éléments actionnables visibles:")
+        lines.append("Visible actionable elements:")
         for e in actionable:
             name = e.label or e.text or e.selector
             lines.append(f"  - {name} ({e.selector})")

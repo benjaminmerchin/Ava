@@ -5,7 +5,7 @@
 - DEEP (AVA_DEEP_MODE=true): Perception ∥ Knowledge → Guide, a real 3-agent crew
   showcasing CrewAI orchestration (for the pitch / eval comparison).
 
-Both return the strict structured response Ava speaks.
+Both return the strict structured response Ava speaks (in English).
 """
 from __future__ import annotations
 
@@ -18,16 +18,16 @@ from .schemas import AskRequest, AvaResponse
 from .tools import make_doc_search_tool
 
 _GUIDE_BACKSTORY = (
-    "Assistant de support qui explique le POURQUOI et désigne l'élément à corriger "
-    "(la cause racine) — sans jamais cliquer à la place de l'utilisateur."
+    "A support assistant that explains the WHY and points at the element to fix "
+    "(the root cause) — and never clicks on the user's behalf."
 )
 
 _OUTPUT_SPEC = (
-    "Produis la réponse d'Ava, en français:\n"
-    "- speech: explication courte et naturelle (1-2 phrases) qui dit le POURQUOI.\n"
-    "- highlight_selector: le sélecteur CSS de l'élément à corriger (la CAUSE racine), ou null.\n"
-    "- next_step: la prochaine action concrète pour l'utilisateur, ou null.\n"
-    "Ne propose jamais de cliquer à la place de l'utilisateur."
+    "Produce Ava's answer, in English:\n"
+    "- speech: a short, natural explanation (1-2 sentences) that says WHY.\n"
+    "- highlight_selector: the CSS selector of the element to fix (the ROOT CAUSE), or null.\n"
+    "- next_step: the concrete next action for the user, or null.\n"
+    "Never offer to click on the user's behalf."
 )
 
 
@@ -38,23 +38,23 @@ def _lean_crew(req: AskRequest) -> Crew:
     docs = retrieve(req.tenant_id, req.question, k=3)
     doc_text = (
         "\n\n".join(f"[{s.source} · {s.title}]\n{s.text}" for s in docs)
-        or "(aucune documentation pertinente)"
+        or "(no relevant documentation)"
     )
 
     ava = Agent(
         role="Ava",
-        goal="Guider l'utilisateur pas à pas, en français, clairement et brièvement.",
+        goal="Guide the user step by step, in English, clearly and briefly.",
         backstory=_GUIDE_BACKSTORY,
         llm=llm, verbose=False, allow_delegation=False,
     )
     task = Task(
         description=(
-            f"Question de l'utilisateur: {req.question}\n\n"
-            f"État de l'interface:\n{state}\n\n"
-            f"Documentation produit pertinente:\n{doc_text}\n\n"
+            f"User question: {req.question}\n\n"
+            f"Interface state:\n{state}\n\n"
+            f"Relevant product documentation:\n{doc_text}\n\n"
             f"{_OUTPUT_SPEC}"
         ),
-        expected_output="Objet structuré: speech / highlight_selector / next_step.",
+        expected_output="Structured object: speech / highlight_selector / next_step.",
         agent=ava, output_pydantic=AvaResponse,
     )
     return Crew(agents=[ava], tasks=[task], process=Process.sequential, verbose=False)
@@ -68,41 +68,41 @@ def _deep_crew(req: AskRequest) -> Crew:
 
     perception = Agent(
         role="State Reader",
-        goal="Diagnostiquer l'état de l'interface et pourquoi un élément est bloqué.",
-        backstory="Expert qui lit l'état du DOM pour comprendre la logique métier de l'app.",
+        goal="Diagnose the interface state and why an element is blocked.",
+        backstory="An expert that reads the DOM state to understand the app's business logic.",
         llm=llm, verbose=False, allow_delegation=False,
     )
     knowledge = Agent(
         role="Doc Expert",
-        goal="Retrouver dans la doc produit les étapes et règles utiles à la question.",
-        backstory="Connaît la documentation du produit et sait quelle section répond à chaque situation.",
+        goal="Find the steps and rules in the product docs relevant to the question.",
+        backstory="Knows the product documentation and which section answers each situation.",
         llm=llm, tools=[doc_tool], verbose=False, allow_delegation=False,
     )
     guide = Agent(
-        role="Coach", goal="Guider l'utilisateur pas à pas, en français.",
+        role="Coach", goal="Guide the user step by step, in English.",
         backstory=_GUIDE_BACKSTORY, llm=llm, verbose=False, allow_delegation=False,
     )
 
     t_perception = Task(
         description=(
-            f"Question: {req.question}\n\nÉtat de l'interface:\n{state}\n\n"
-            "Identifie l'élément concerné et explique pourquoi il est bloqué. "
-            "Donne le sélecteur CSS de la cause racine s'il existe."
+            f"User question: {req.question}\n\nInterface state:\n{state}\n\n"
+            "Identify the element involved and explain why it is blocked. "
+            "Give the CSS selector of the root cause if one exists."
         ),
-        expected_output="Diagnostic court: élément, sélecteur, raison du blocage.",
+        expected_output="Short diagnosis: element, selector, reason it's blocked.",
         agent=perception, async_execution=True,
     )
     t_knowledge = Task(
         description=(
-            f"Question: {req.question}\n\nContexte:\n{state}\n\n"
-            "Utilise doc_search pour trouver les étapes/règles pertinentes. Résume-les."
+            f"User question: {req.question}\n\nContext:\n{state}\n\n"
+            "Use doc_search to find the relevant steps/rules. Summarize them."
         ),
-        expected_output="Étapes/règles pertinentes de la documentation.",
+        expected_output="Relevant steps/rules from the documentation.",
         agent=knowledge, async_execution=True,
     )
     t_guide = Task(
-        description=f"Question: {req.question}\n\n{_OUTPUT_SPEC}",
-        expected_output="Objet structuré: speech / highlight_selector / next_step.",
+        description=f"User question: {req.question}\n\n{_OUTPUT_SPEC}",
+        expected_output="Structured object: speech / highlight_selector / next_step.",
         agent=guide, context=[t_perception, t_knowledge], output_pydantic=AvaResponse,
     )
     return Crew(

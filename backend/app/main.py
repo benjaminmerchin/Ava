@@ -78,19 +78,19 @@ def _mock(req: AskRequest) -> AvaResponse:
     """Deterministic, no-LLM answer so the widget loop works before any creds.
     Also the live fallback if the crew errors. Combines DOM analysis + doc retrieval."""
     docs = retrieve(req.tenant_id, req.question, k=1)
-    hint = f" (voir : {docs[0].title})" if docs else ""
+    hint = f" (see: {docs[0].title})" if docs else ""
     target = _best_blocked(req)
     if target is not None:
-        name = target.label or target.text or "cet élément"
-        reason = target.error or "il est désactivé tant qu'une condition n'est pas remplie"
+        name = target.label or target.text or "this element"
+        reason = target.error or "it stays disabled until a condition is met"
         return AvaResponse(
-            speech=f"« {name} » est bloqué parce que {reason}.{hint}",
+            speech=f"“{name}” is blocked because {reason}.{hint}",
             highlight_selector=target.selector,
-            next_step=f"Corrige « {name} » et il s'activera.",
+            next_step=f"Fix “{name}” and it will enable.",
             source="mock",
         )
     return AvaResponse(
-        speech="Je ne détecte pas de blocage ici. Dis-moi ce que tu veux faire et je te guide."
+        speech="I don't see anything blocked here. Tell me what you want to do and I'll guide you."
         + hint,
         highlight_selector=None,
         next_step=docs[0].title if docs else None,
