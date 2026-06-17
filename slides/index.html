@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ava — Pitch</title>
+    <style>
+      :root {
+        --bg: #07070b;
+        --fg: #ececf2;
+        --muted: #9aa0b0;
+        --accent: #7c5cff;
+        --accent2: #a78bfa;
+        --card: #111119;
+        --border: rgba(255, 255, 255, 0.08);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        overflow: hidden;
+      }
+      /* ambient glow */
+      body::before {
+        content: "";
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background: radial-gradient(60% 50% at 50% 0%, rgba(124, 92, 255, 0.16), transparent);
+      }
+      .deck { position: relative; height: 100%; z-index: 1; }
+      .slide {
+        position: absolute; inset: 0;
+        display: none; flex-direction: column; justify-content: center;
+        padding: 7vh 9vw;
+        opacity: 0; transition: opacity 0.4s ease;
+      }
+      .slide.active { display: flex; opacity: 1; }
+      .eyebrow {
+        text-transform: uppercase; letter-spacing: 0.22em; font-size: 0.8rem;
+        color: var(--accent2); font-weight: 600; margin-bottom: 18px;
+      }
+      h1 {
+        font-size: clamp(2.4rem, 6vw, 4.6rem); font-weight: 700;
+        line-height: 1.05; letter-spacing: -0.02em; max-width: 16ch;
+      }
+      .grad {
+        background: linear-gradient(100deg, var(--accent2), var(--accent));
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .lead { color: var(--muted); font-size: clamp(1rem, 2vw, 1.4rem); margin-top: 22px; max-width: 60ch; }
+
+      /* problem cards */
+      .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 40px; max-width: 900px; }
+      .card {
+        background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px;
+      }
+      .card .ico { font-size: 1.7rem; }
+      .card h3 { font-size: 1.25rem; margin: 10px 0 6px; }
+      .card p { color: var(--muted); font-size: 0.98rem; line-height: 1.45; }
+      .kicker { margin-top: 40px; color: var(--fg); font-size: 1.15rem; }
+      .kicker b { color: var(--accent2); }
+
+      /* build slide */
+      .build { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 40px; max-width: 1000px; }
+      .pillar { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 26px 28px; }
+      .pillar .logo { height: 34px; margin-bottom: 18px; }
+      .pillar .logo.chip { background: #fff; border-radius: 10px; padding: 8px 12px; height: 48px; }
+      .pillar ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+      .pillar li { color: var(--muted); font-size: 1rem; line-height: 1.4; padding-left: 22px; position: relative; }
+      .pillar li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+      .strip {
+        margin-top: 28px; max-width: 1000px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+        color: var(--muted); font-size: 0.95rem;
+      }
+      .pill { background: rgba(124,92,255,0.12); border: 1px solid rgba(124,92,255,0.3); color: var(--accent2);
+        border-radius: 999px; padding: 6px 14px; font-weight: 600; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+
+      /* solution slide */
+      .sol { align-items: center; text-align: center; }
+      .sol h1 { max-width: 20ch; }
+      .launch {
+        display: inline-flex; align-items: center; gap: 12px; margin-top: 44px;
+        background: linear-gradient(100deg, var(--accent), #6a4bff);
+        color: #fff; text-decoration: none; font-size: 1.5rem; font-weight: 700;
+        padding: 20px 40px; border-radius: 999px;
+        box-shadow: 0 14px 40px rgba(124, 92, 255, 0.5);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .launch:hover { transform: translateY(-2px); box-shadow: 0 18px 50px rgba(124, 92, 255, 0.65); }
+      .url { margin-top: 16px; color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.9rem; }
+
+      /* chrome */
+      .footer {
+        position: fixed; bottom: 22px; left: 0; right: 0; z-index: 2;
+        display: flex; align-items: center; justify-content: center; gap: 14px;
+        color: var(--muted); font-size: 0.78rem;
+      }
+      .footer img { height: 16px; opacity: 0.9; background: #fff; border-radius: 4px; padding: 2px 4px; }
+      .dots { position: fixed; bottom: 22px; right: 28px; z-index: 3; display: flex; gap: 8px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: all .2s; }
+      .dot.active { background: var(--accent); width: 26px; border-radius: 6px; }
+      .brand { position: fixed; top: 24px; left: 32px; z-index: 3; font-weight: 700; letter-spacing: -0.01em; }
+      .brand span { color: var(--accent2); }
+      .hint { position: fixed; bottom: 22px; left: 32px; z-index: 3; color: var(--muted); font-size: 0.75rem; }
+    </style>
+  </head>
+  <body>
+    <div class="brand">Ava<span>.</span></div>
+
+    <div class="deck" id="deck">
+      <!-- 1 — PROBLEM -->
+      <section class="slide active">
+        <div class="eyebrow">The problem</div>
+        <h1>In-app help is <span class="grad">still broken.</span></h1>
+        <div class="cards">
+          <div class="card"><div class="ico">🐌</div><h3>Slow</h3><p>You wait, or you dig through docs and support tickets.</p></div>
+          <div class="card"><div class="ico">🎯</div><h3>Not precise</h3><p>Generic answers — the bot has no idea what's on <i>your</i> screen.</p></div>
+          <div class="card"><div class="ico">🕰️</div><h3>Out of date</h3><p>Trained months ago, not on your product as it is today.</p></div>
+          <div class="card"><div class="ico">🧊</div><h3>Cold</h3><p>Robotic, text-only. Nothing like talking to a person.</p></div>
+        </div>
+        <div class="kicker">Users get stuck on a <b>greyed-out button</b> — and churn.</div>
+      </section>
+
+      <!-- 2 — HOW WE BUILT IT -->
+      <section class="slide">
+        <div class="eyebrow">How we built it</div>
+        <h1>Production-grade, <span class="grad">by design.</span></h1>
+        <div class="build">
+          <div class="pillar">
+            <img class="logo chip" src="crewai.png" alt="CrewAI" />
+            <ul>
+              <li>Multi-agent crew: <b>Perception ∥ Knowledge → Guide</b></li>
+              <li>Specialized agents, one reliable answer</li>
+              <li>Lean mode for live latency · deep mode for orchestration</li>
+            </ul>
+          </div>
+          <div class="pillar">
+            <img class="logo chip" src="truefoundry.png" alt="TrueFoundry" />
+            <ul>
+              <li>Every LLM call via the <b>AI Gateway → AWS Bedrock</b></li>
+              <li>Model fallbacks (Nova / Claude) + guardrails</li>
+              <li>Full observability — every agent call traced</li>
+            </ul>
+          </div>
+        </div>
+        <div class="strip">
+          <span class="pill">DOM state → crew → { speech · highlight · next step }</span>
+          <span class="pill">reliability eval: 12/12 ✓</span>
+        </div>
+      </section>
+
+      <!-- 3 — SOLUTION -->
+      <section class="slide sol">
+        <div class="eyebrow">The solution</div>
+        <h1>Ava — support that <span class="grad">sees your screen.</span></h1>
+        <p class="lead">Embedded in Lyvica. It reads the live UI, knows <i>why</i> you're blocked,
+          points you to the exact fix, and talks you through it.</p>
+        <a class="launch" href="http://localhost:3001" target="_blank" rel="noopener">▶ Launch the live demo</a>
+        <div class="url">localhost:3001 · ask Ava “why can't I publish?”</div>
+      </section>
+    </div>
+
+    <div class="footer">
+      Built at
+      <img src="capgemini.png" alt="Capgemini" />
+      ×
+      <img src="truefoundry.png" alt="TrueFoundry" />
+      ×
+      <img src="crewai.png" alt="CrewAI" />
+      hackathon
+    </div>
+    <div class="hint">← → to navigate</div>
+    <div class="dots" id="dots"></div>
+
+    <script>
+      var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+      var dotsWrap = document.getElementById("dots");
+      var i = 0;
+      slides.forEach(function (_, idx) {
+        var d = document.createElement("div");
+        d.className = "dot" + (idx === 0 ? " active" : "");
+        d.addEventListener("click", function () { go(idx); });
+        dotsWrap.appendChild(d);
+      });
+      var dots = Array.prototype.slice.call(dotsWrap.children);
+      function go(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach(function (s, idx) { s.classList.toggle("active", idx === i); });
+        dots.forEach(function (d, idx) { d.classList.toggle("active", idx === i); });
+      }
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(i + 1); }
+        else if (e.key === "ArrowLeft") go(i - 1);
+        else if (e.key === "Home") go(0);
+        else if (e.key === "End") go(slides.length - 1);
+      });
+    </script>
+  </body>
+</html>
