@@ -108,6 +108,17 @@
       .links span { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 15px; font-size: 0.88rem; font-family: ui-monospace, monospace; }
       .links b { color: var(--accent2); }
 
+      /* evidence map (line-by-line + GitHub links) */
+      .evidence { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 26px; max-width: 1060px; }
+      .evcol { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+      .evhead { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.05rem; margin-bottom: 8px; }
+      .evhead img { height: 22px; background: #fff; border-radius: 5px; padding: 3px 6px; }
+      .evrow { display: flex; flex-direction: column; gap: 1px; text-decoration: none; color: var(--fg); padding: 8px 11px; border-radius: 10px; border: 1px solid transparent; transition: all 0.15s; }
+      .evrow:hover { background: rgba(124, 92, 255, 0.08); border-color: rgba(124, 92, 255, 0.3); }
+      .evrow b { font-size: 0.92rem; }
+      .evrow .ex { font-size: 0.78rem; color: var(--muted); }
+      .evrow code { font-family: ui-monospace, monospace; font-size: 0.72rem; color: var(--accent2); margin-top: 2px; }
+
       /* chrome */
       .footer {
         position: fixed; bottom: 22px; left: 0; right: 0; z-index: 2;
@@ -238,38 +249,27 @@
 
       <!-- 5 — PROOF / CODE -->
       <section class="slide">
-        <div class="eyebrow">Proof · show me the code</div>
-        <h1>Not just slides — <span class="grad">real code.</span></h1>
-        <div class="proof">
-          <div class="codecard">
-            <div class="codehead">CrewAI · multi-agent crew</div>
-            <pre># Perception ∥ Knowledge  →  Guide
-crew = Crew(
-  agents=[perception, knowledge, guide],
-  tasks=[t_perception, t_knowledge, t_guide],
-  process=Process.sequential,   # async ∥, then Guide
-)
-
-# every call → the TrueFoundry gateway
-LLM(model="openai/anthropic/claude-opus-4-8",
-    base_url=TFY_BASE_URL, api_key=TFY_API_KEY)</pre>
+        <div class="eyebrow">Proof · every claim → the exact line</div>
+        <h1>Click any row. <span class="grad">It's all in the code.</span></h1>
+        <div class="evidence">
+          <div class="evcol">
+            <div class="evhead"><img src="crewai.png" alt="CrewAI" /> CrewAI</div>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/ava_crew.py#L64"><b>3-agent crew</b><span class="ex">Perception ∥ Knowledge → Guide</span><code>ava_crew.py:64</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/ava_crew.py#L94"><b>Parallel execution</b><span class="ex">async_execution — Perception ∥ Knowledge</span><code>ava_crew.py:94</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/ava_crew.py#L107"><b>Task dependency graph</b><span class="ex">context=[…] — Guide gets both outputs</span><code>ava_crew.py:107</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/tools.py#L12"><b>Tool calling</b><span class="ex">@tool doc_search — RAG over the docs</span><code>tools.py:12</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/ava_crew.py#L59"><b>Structured output</b><span class="ex">output_pydantic — strict JSON contract</span><code>ava_crew.py:59</code></a>
           </div>
-          <div class="codecard">
-            <div class="codehead">TrueFoundry · gateway fallback (server-side)</div>
-            <pre>type: gateway-load-balancing-config
-rules:
-- type: priority-based-routing
-  when: { models: [ava-router] }
-  load_balance_targets:
-  - target: anthropic/claude-opus-4-8    # priority 0
-    fallback_status_codes: ["404","429","500"]
-  - target: anthropic/claude-sonnet-4-5  # priority 1
-  - target: anthropic/claude-haiku-4-5   # priority 2</pre>
+          <div class="evcol">
+            <div class="evhead"><img src="truefoundry.png" alt="TrueFoundry" /> TrueFoundry</div>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/llm.py#L17"><b>Gateway routing</b><span class="ex">every LLM call → the TF gateway</span><code>llm.py:17</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/truefoundry-loadbalancing.yaml#L20"><b>Server-side fallback</b><span class="ex">priority routing — Opus → Sonnet → Haiku</span><code>truefoundry-loadbalancing.yaml:20</code></a>
+            <a class="evrow" target="_blank" href="https://github.com/benjaminmerchin/Ava/blob/cf9c9d3/backend/app/ava_crew.py#L157"><b>Failover (live demo)</b><span class="ex">chain failover + inject_fail hook</span><code>ava_crew.py:157</code></a>
           </div>
         </div>
         <div class="links">
           <span>📦 <b>github.com/benjaminmerchin/Ava</b></span>
-          <span>🔍 <b>:8000/inspect</b> — live crew run</span>
+          <span>🔍 <b>:8000/inspect</b> — live crew</span>
           <span>▶ <b>:3001</b> — live demo</span>
         </div>
       </section>
