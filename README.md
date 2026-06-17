@@ -62,9 +62,9 @@ Ask _"pourquoi je ne peux pas publier ?"_ → watch Ava explain and highlight.
 - **CrewAI** runs the agent crew (lean + deep). Strict structured output via `output_pydantic`.
 - **TrueFoundry AI Gateway** — _every_ LLM call routes through it (OpenAI-compatible → AWS Bedrock),
   so cost/latency/traces are observable in the TF dashboard, with model fallbacks and guardrails.
-  Same gateway + fallback convention as our `lyvica-resilient-agent`. Currently serving **Amazon Nova**
-  (Anthropic Claude is the configured fallback but gated on the demo Bedrock account — the exact
-  "resilience" scenario the gateway is built for).
+  Same gateway convention as our `lyvica-resilient-agent`. Serving **Claude Opus 4.8** via the gateway's
+  direct Anthropic provider — we hit Bedrock's Anthropic gating mid-build and switched providers in one
+  line (Amazon Nova kept as a fallback). Resilience, demonstrated for real.
 
 ## Reliability & evaluation
 
@@ -101,7 +101,7 @@ web/       Next.js landing    (Tailwind + shadcn + Magic UI)
 | Var | Role |
 |-----|------|
 | `TFY_BASE_URL` / `TFY_API_KEY` | TrueFoundry AI Gateway endpoint + token |
-| `MODEL_PRIMARY` · `MODEL_FALLBACK_1/2` | model + fallback chain (e.g. `aws-bedrock/us.amazon.nova-pro-v1-0`) |
+| `MODEL_PRIMARY` · `MODEL_FALLBACK_1/2` | model + fallback chain (e.g. `anthropic/claude-opus-4-8`) |
 | `AVA_DEEP_MODE` | `true` = 3-agent crew, `false` = lean (default) |
 
 Empty creds → **mock mode** (deterministic, runs with no LLM).

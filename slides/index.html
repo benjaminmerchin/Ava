@@ -144,9 +144,9 @@
             <img class="logo chip" src="truefoundry.png" alt="TrueFoundry" />
             <div class="used">What we used</div>
             <ul>
-              <li><b>AI Gateway</b> — every LLM call routes through it</li>
-              <li><b>Multi-provider</b> — Claude + Amazon Nova behind one endpoint</li>
-              <li><b>Fallback chain + retries</b> — survives model gating / outages</li>
+              <li><b>AI Gateway</b> — every LLM call routes through it (OpenAI-compatible)</li>
+              <li><b>Multi-model</b> — Claude Opus 4.8 / Sonnet / Haiku behind one endpoint</li>
+              <li><b>Resilient routing</b> — Bedrock Anthropic was gated → we switched to direct Anthropic in one line</li>
               <li><b>Observability</b> — every agent call traced in the dashboard</li>
             </ul>
           </div>
