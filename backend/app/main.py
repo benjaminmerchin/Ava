@@ -25,6 +25,7 @@ app.add_middleware(
 _HERE = os.path.dirname(__file__)
 _WIDGET = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-widget.js"))
 _DEMO = os.path.normpath(os.path.join(_HERE, "..", "..", "demo", "lyvica.html"))
+_FACE = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-face.jpg"))
 
 
 @app.get("/health")
@@ -40,6 +41,11 @@ def widget() -> FileResponse:
 @app.get("/demo")
 def demo() -> FileResponse:
     return FileResponse(_DEMO, media_type="text/html")
+
+
+@app.get("/ava-face.jpg")
+def ava_face() -> FileResponse:
+    return FileResponse(_FACE, media_type="image/jpeg")
 
 
 @app.post("/ask", response_model=AvaResponse)

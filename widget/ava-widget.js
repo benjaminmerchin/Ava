@@ -5,16 +5,20 @@
   var TENANT = (script && script.getAttribute("data-tenant")) || "lyvica";
   var ENDPOINT = (script && script.getAttribute("data-endpoint")) || "http://localhost:8000";
 
-  // ---------- styles (self-contained: explicit colors so the host's dark theme can't leak in) ----------
+  // ---------- styles (self-contained; explicit colors so the host theme can't leak in) ----------
   var css =
-    ".ava-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:#6c5ce7;color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:2147483000}" +
-    ".ava-panel{position:fixed;bottom:92px;right:24px;width:360px;max-height:64vh;background:#fff;color:#1c2024;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;flex-direction:column;overflow:hidden;z-index:2147483000;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}" +
+    ".ava-fab{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#6c5ce7;color:#fff;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(108,92,231,.5);z-index:2147483000;overflow:hidden;padding:0}" +
+    ".ava-fab img{width:100%;height:100%;object-fit:cover}" +
+    ".ava-panel{position:fixed;bottom:96px;right:24px;width:360px;max-height:66vh;background:#fff;color:#1c2024;border-radius:18px;box-shadow:0 14px 44px rgba(0,0,0,.4);display:none;flex-direction:column;overflow:hidden;z-index:2147483000;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}" +
     ".ava-panel.open{display:flex}" +
-    ".ava-head{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#6c5ce7,#8e7bff);color:#fff;padding:12px 16px}" +
-    ".ava-ava{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;overflow:hidden}" +
-    ".ava-ava img{width:100%;height:100%;object-fit:cover}" +
-    ".ava-title{font-weight:600;line-height:1.1}" +
+    ".ava-head{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#6c5ce7,#8e7bff);color:#fff;padding:12px 14px}" +
+    ".ava-face{width:42px;height:42px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,.65)}" +
+    ".ava-face img{width:100%;height:100%;object-fit:cover;display:block}" +
+    ".ava-face.speaking{animation:ava-pulse 1s ease-in-out infinite}" +
+    "@keyframes ava-pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6)}70%{box-shadow:0 0 0 9px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}" +
+    ".ava-title{font-weight:600;line-height:1.15}" +
     ".ava-sub{font-size:11px;opacity:.85}" +
+    ".ava-mute{margin-left:auto;background:rgba(255,255,255,.16);border:none;color:#fff;width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px}" +
     ".ava-body{padding:14px 16px;overflow-y:auto;flex:1;font-size:14px;color:#1c2024;background:#fff}" +
     ".ava-msg{margin:8px 0;line-height:1.45;color:#1c2024}" +
     ".ava-msg.user{text-align:right;color:#4b5563}" +
@@ -23,25 +27,36 @@
     ".ava-input{flex:1;border:none;padding:13px 14px;font-size:14px;outline:none;color:#1c2024;background:#fff}" +
     ".ava-input::placeholder{color:#9aa0a6}" +
     ".ava-send{border:none;background:#6c5ce7;color:#fff;padding:0 18px;cursor:pointer;font-size:16px}" +
-    ".ava-highlight{outline:3px solid #6c5ce7 !important;outline-offset:2px;border-radius:4px}";
+    // attention on the target element
+    ".ava-highlight{outline:3px solid #6c5ce7 !important;outline-offset:3px;border-radius:6px;animation:ava-ring 1.1s ease-in-out infinite}" +
+    "@keyframes ava-ring{0%,100%{box-shadow:0 0 0 0 rgba(108,92,231,.55)}50%{box-shadow:0 0 0 9px rgba(108,92,231,0)}}" +
+    // floating pointer
+    ".ava-pointer{position:fixed;z-index:2147483001;pointer-events:none;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%)}" +
+    ".ava-pointer.below{flex-direction:column-reverse}" +
+    ".ava-pointer .ava-bubble{background:#6c5ce7;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:10px;max-width:230px;text-align:center;box-shadow:0 6px 18px rgba(108,92,231,.5)}" +
+    ".ava-pointer .ava-arrow{font-size:26px;line-height:1;animation:ava-bounce .8s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}" +
+    "@keyframes ava-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 
+  var FACE = ENDPOINT + "/ava-face.jpg";
+
   // ---------- UI ----------
   var fab = document.createElement("button");
   fab.className = "ava-fab";
-  fab.textContent = "💬";
   fab.title = "Ava";
+  fab.innerHTML = '<img src="' + FACE + '" alt="Ava"/>';
 
   var panel = document.createElement("div");
   panel.className = "ava-panel";
   panel.innerHTML =
     '<div class="ava-head">' +
-    '<div class="ava-ava" id="ava-ava">A</div>' +
+    '<div class="ava-face" id="ava-face"><img src="' + FACE + '" alt="Ava"/></div>' +
     '<div><div class="ava-title">Ava</div><div class="ava-sub">Support assistant</div></div>' +
+    '<button class="ava-mute" id="ava-mute" title="Mute voice">🔊</button>' +
     "</div>" +
-    '<div class="ava-body" id="ava-body"><div class="ava-msg">Hi 👋 Ask me anything about this page — I can see what\'s blocked and why.</div></div>' +
+    '<div class="ava-body" id="ava-body"><div class="ava-msg">Hi 👋 Ask me anything about this page — I can see what\'s blocked and point you to the fix.</div></div>' +
     '<div class="ava-foot"><input class="ava-input" id="ava-input" placeholder="Type your question…"/><button class="ava-send" id="ava-send">➤</button></div>';
 
   document.body.appendChild(fab);
@@ -49,13 +64,24 @@
 
   var body = panel.querySelector("#ava-body");
   var input = panel.querySelector("#ava-input");
+  var faceEl = panel.querySelector("#ava-face");
+  var muteBtn = panel.querySelector("#ava-mute");
+
   fab.addEventListener("click", function () {
     panel.classList.toggle("open");
     if (panel.classList.contains("open")) input.focus();
+    else clearPointer();
   });
   panel.querySelector("#ava-send").addEventListener("click", send);
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") send();
+  });
+
+  var muted = false;
+  muteBtn.addEventListener("click", function () {
+    muted = !muted;
+    muteBtn.textContent = muted ? "🔇" : "🔊";
+    if (muted && window.speechSynthesis) window.speechSynthesis.cancel();
   });
 
   function addMsg(text, next, who) {
@@ -70,6 +96,77 @@
       body.appendChild(n);
     }
     body.scrollTop = body.scrollHeight;
+  }
+
+  // ---------- voice ----------
+  function speak(text) {
+    if (muted || !text || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US";
+      u.rate = 1.03;
+      var voices = window.speechSynthesis.getVoices();
+      var v =
+        voices.filter(function (x) { return /en[-_]?US/i.test(x.lang); })[0] ||
+        voices.filter(function (x) { return /^en/i.test(x.lang); })[0];
+      if (v) u.voice = v;
+      u.onstart = function () { faceEl.classList.add("speaking"); };
+      u.onend = function () { faceEl.classList.remove("speaking"); };
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- attention pointer ----------
+  var current = null;
+  var pointer = null;
+
+  function clearPointer() {
+    if (current) { current.classList.remove("ava-highlight"); current = null; }
+    if (pointer) { pointer.remove(); pointer = null; }
+    window.removeEventListener("scroll", positionPointer, true);
+    window.removeEventListener("resize", positionPointer);
+  }
+
+  function positionPointer() {
+    if (!current || !pointer) return;
+    var r = current.getBoundingClientRect();
+    var x = r.left + r.width / 2;
+    var above = r.top > 90;
+    pointer.classList.toggle("below", !above);
+    pointer.querySelector(".ava-arrow").textContent = above ? "👇" : "👆";
+    pointer.style.left = x + "px";
+    var h = pointer.offsetHeight;
+    pointer.style.top = (above ? r.top - h - 6 : r.bottom + 6) + "px";
+  }
+
+  function highlight(selector, label) {
+    clearPointer();
+    if (!selector) return;
+    var el;
+    try { el = document.querySelector(selector); } catch (e) { return; }
+    if (!el) return;
+    current = el;
+    el.classList.add("ava-highlight");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    pointer = document.createElement("div");
+    pointer.className = "ava-pointer";
+    pointer.innerHTML =
+      (label ? '<div class="ava-bubble"></div>' : "") + '<div class="ava-arrow">👇</div>';
+    if (label) pointer.querySelector(".ava-bubble").textContent = label;
+    document.body.appendChild(pointer);
+
+    window.addEventListener("scroll", positionPointer, true);
+    window.addEventListener("resize", positionPointer);
+    // follow the smooth-scroll for ~700ms
+    var t0 = null;
+    function follow(ts) {
+      if (t0 === null) t0 = ts;
+      positionPointer();
+      if (ts - t0 < 700 && pointer) requestAnimationFrame(follow);
+    }
+    requestAnimationFrame(follow);
   }
 
   // ---------- DOM capture ----------
@@ -118,26 +215,6 @@
     return { url: location.href, title: document.title, elements: els.slice(0, 60) };
   }
 
-  // ---------- highlight ----------
-  var current = null;
-  function highlight(sel) {
-    if (current) {
-      current.classList.remove("ava-highlight");
-      current = null;
-    }
-    if (!sel) return;
-    try {
-      var el = document.querySelector(sel);
-      if (el) {
-        el.classList.add("ava-highlight");
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        current = el;
-      }
-    } catch (e) {
-      /* invalid selector — ignore */
-    }
-  }
-
   // ---------- ask ----------
   function send() {
     var q = input.value.trim();
@@ -160,14 +237,12 @@
         dom: captureDom(),
       }),
     })
-      .then(function (r) {
-        return r.json();
-      })
+      .then(function (r) { return r.json(); })
       .then(function (res) {
         thinking.remove();
         addMsg(res.speech || "…", res.next_step);
-        highlight(res.highlight_selector);
-        if (window.AvaSpeak) window.AvaSpeak(res.speech); // avatar TTS hook (milestone 4)
+        highlight(res.highlight_selector, res.next_step);
+        speak(res.speech);
       })
       .catch(function () {
         thinking.remove();
@@ -175,6 +250,8 @@
       });
   }
 
-  // expose for the avatar layer / debugging
+  // warm up voices
+  if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
   window.Ava = { captureDom: captureDom, highlight: highlight, ask: send };
 })();
