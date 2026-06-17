@@ -35,7 +35,11 @@
     ".ava-pointer.below{flex-direction:column-reverse}" +
     ".ava-pointer .ava-bubble{background:#6c5ce7;color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:10px;max-width:230px;text-align:center;box-shadow:0 6px 18px rgba(108,92,231,.5)}" +
     ".ava-pointer .ava-arrow{font-size:26px;line-height:1;animation:ava-bounce .8s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}" +
-    "@keyframes ava-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}";
+    "@keyframes ava-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}" +
+    ".ava-typing{display:inline-flex;gap:4px;align-items:center;padding:3px 0}" +
+    ".ava-typing span{width:7px;height:7px;border-radius:50%;background:#6c5ce7;display:inline-block;animation:ava-blink 1.2s infinite ease-in-out both}" +
+    ".ava-typing span:nth-child(2){animation-delay:.2s}.ava-typing span:nth-child(3){animation-delay:.4s}" +
+    "@keyframes ava-blink{0%,80%,100%{transform:scale(.6);opacity:.35}40%{transform:scale(1);opacity:1}}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
@@ -99,17 +103,31 @@
   }
 
   // ---------- voice ----------
+  function pickVoice() {
+    var vs = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    if (!vs.length) return null;
+    var pref = [
+      "google us english", "samantha", "microsoft aria", "microsoft jenny",
+      "microsoft michelle", "google uk english female", "karen", "moira", "tessa",
+    ];
+    for (var i = 0; i < pref.length; i++) {
+      var m = vs.filter(function (v) { return v.name.toLowerCase().indexOf(pref[i]) !== -1; })[0];
+      if (m) return m;
+    }
+    var en = vs.filter(function (v) { return /^en[-_]?us/i.test(v.lang); });
+    var cloud = en.filter(function (v) { return v.localService === false; })[0];
+    return cloud || en[0] || vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || vs[0];
+  }
+
   function speak(text) {
     if (muted || !text || !window.speechSynthesis) return;
     try {
       window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
       u.lang = "en-US";
-      u.rate = 1.03;
-      var voices = window.speechSynthesis.getVoices();
-      var v =
-        voices.filter(function (x) { return /en[-_]?US/i.test(x.lang); })[0] ||
-        voices.filter(function (x) { return /^en/i.test(x.lang); })[0];
+      u.rate = 1.0;
+      u.pitch = 1.05;
+      var v = pickVoice();
       if (v) u.voice = v;
       u.onstart = function () { faceEl.classList.add("speaking"); };
       u.onend = function () { faceEl.classList.remove("speaking"); };
@@ -223,7 +241,8 @@
     input.value = "";
     var thinking = document.createElement("div");
     thinking.className = "ava-msg";
-    thinking.textContent = "…";
+    thinking.innerHTML =
+      '<span class="ava-typing"><span></span><span></span><span></span></span>';
     body.appendChild(thinking);
     body.scrollTop = body.scrollHeight;
 
