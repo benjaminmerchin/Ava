@@ -65,13 +65,13 @@
           });
           root.updateWorldMatrix(true, true);
           const target = new THREE.Vector3();
-          if (headBone) { headBone.getWorldPosition(target); target.y += 0.12; }
+          if (headBone) { headBone.getWorldPosition(target); target.y += 0.04; }
           else {
             const box = new THREE.Box3().setFromObject(root);
             const s = new THREE.Vector3(); box.getSize(s);
-            target.set(0, box.max.y - s.y * 0.09, 0);
+            target.set(0, box.max.y - s.y * 0.13, 0);
           }
-          camera.position.set(target.x, target.y, target.z + 0.58);
+          camera.position.set(target.x, target.y, target.z + 0.82);
           camera.lookAt(target.x, target.y, target.z);
           resize();
           fallback.style.display = "none";
