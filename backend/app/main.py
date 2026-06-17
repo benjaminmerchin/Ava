@@ -3,14 +3,16 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .dom import blocked_elements
 from .rag import retrieve
-from .schemas import AskRequest, AvaResponse
+from .schemas import AskRequest, AvaResponse, TtsRequest
 
 app = FastAPI(title="Ava", version="0.1.0")
 
@@ -28,11 +30,19 @@ _DEMO = os.path.normpath(os.path.join(_HERE, "..", "..", "demo", "lyvica.html"))
 _FACE = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-face.jpg"))
 _AVATAR_HTML = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "avatar.html"))
 _AVATAR_GLB = os.path.normpath(os.path.join(_HERE, "..", "..", "widget", "ava-avatar.glb"))
+_SLIDES = os.path.normpath(os.path.join(_HERE, "..", "..", "slides"))
+
+if os.path.isdir(_SLIDES):
+    app.mount("/slides", StaticFiles(directory=_SLIDES, html=True), name="slides")
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "mode": "crew" if settings.has_llm else "mock"}
+    return {
+        "status": "ok",
+        "mode": "crew" if settings.has_llm else "mock",
+        "tts": settings.has_tts,
+    }
 
 
 @app.get("/widget.js")
@@ -60,6 +70,31 @@ def avatar_glb() -> FileResponse:
     return FileResponse(_AVATAR_GLB, media_type="model/gltf-binary")
 
 
+@app.post("/tts")
+def tts(req: TtsRequest) -> Response:
+    """ElevenLabs TTS (direct — the TF gateway has no audio). Returns MP3 audio."""
+    if not settings.has_tts or not req.text.strip():
+        return Response(status_code=204)
+    try:
+        r = httpx.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{settings.eleven_voice_id}",
+            headers={"xi-api-key": settings.eleven_api_key, "accept": "audio/mpeg"},
+            json={
+                "text": req.text,
+                "model_id": settings.eleven_model,
+                "voice_settings": {"stability": 0.45, "similarity_boost": 0.8},
+            },
+            timeout=30,
+        )
+    except Exception as exc:  # network error
+        print(f"[ava] tts error: {exc}")
+        return Response(status_code=502)
+    if r.status_code != 200:
+        print(f"[ava] tts {r.status_code}: {r.text[:200]}")
+        return Response(status_code=502)
+    return Response(content=r.content, media_type="audio/mpeg")
+
+
 @app.post("/ask", response_model=AvaResponse)
 def ask(req: AskRequest) -> AvaResponse:
     if settings.has_llm:
@@ -73,15 +108,12 @@ def ask(req: AskRequest) -> AvaResponse:
 
 
 def _best_blocked(req: AskRequest):
-    """Pick the blocked element most relevant to the question (stem match),
-    falling back to the first blocked element."""
+    """Pick the blocked element most relevant to the question (stem match)."""
     blocked = blocked_elements(req.dom)
     if not blocked:
         return None
     qwords = [
-        w
-        for w in re.findall(r"[a-zàâçéèêëîïôûùü0-9]+", req.question.lower())
-        if len(w) > 2
+        w for w in re.findall(r"[a-zàâçéèêëîïôûùü0-9]+", req.question.lower()) if len(w) > 2
     ]
     best_score, best = 0, blocked[0]
     for e in blocked:
@@ -93,8 +125,7 @@ def _best_blocked(req: AskRequest):
 
 
 def _mock(req: AskRequest) -> AvaResponse:
-    """Deterministic, no-LLM answer so the widget loop works before any creds.
-    Also the live fallback if the crew errors. Combines DOM analysis + doc retrieval."""
+    """Deterministic fallback (no LLM) — also the live safety net if the crew errors."""
     docs = retrieve(req.tenant_id, req.question, k=1)
     hint = f" (see: {docs[0].title})" if docs else ""
     target = _best_blocked(req)

@@ -36,3 +36,7 @@ class AvaResponse(BaseModel):
     highlight_selector: Optional[str] = None
     next_step: Optional[str] = None
     source: str = "crew"  # "crew" | "mock" | "fallback"
+
+
+class TtsRequest(BaseModel):
+    text: str

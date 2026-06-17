@@ -194,7 +194,7 @@
         aria: {},
       });
     });
-    return { url: location.href, title: document.title, elements: els.slice(0, 60) };
+    return { url: location.href, title: document.title, elements: els.slice(0, 120) };
   }
 
   // ---------- ask ----------

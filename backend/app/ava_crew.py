@@ -2,8 +2,7 @@
 
 - LEAN (default, live demo): one agent, one LLM call. DOM analysis + doc retrieval
   are done deterministically in Python and injected — fast (~one round-trip).
-- DEEP (AVA_DEEP_MODE=true): Perception ∥ Knowledge → Guide, a real 3-agent crew
-  showcasing CrewAI orchestration (for the pitch / eval comparison).
+- DEEP (AVA_DEEP_MODE=true): Perception ∥ Knowledge → Guide, a real 3-agent crew.
 
 Both return the strict structured response Ava speaks (in English).
 """
@@ -18,14 +17,16 @@ from .schemas import AskRequest, AvaResponse
 from .tools import make_doc_search_tool
 
 _GUIDE_BACKSTORY = (
-    "A support assistant that explains the WHY and points at the element to fix "
+    "A support assistant that explains the WHY and points at the element to act on "
     "(the root cause) — and never clicks on the user's behalf."
 )
 
 _OUTPUT_SPEC = (
     "Produce Ava's answer, in English:\n"
-    "- speech: a short, natural explanation (1-2 sentences) that says WHY.\n"
-    "- highlight_selector: the CSS selector of the element to fix (the ROOT CAUSE), or null.\n"
+    "- speech: a short, natural explanation (1-2 sentences) that directly answers the user.\n"
+    "- highlight_selector: the CSS selector of the single MOST relevant element for the user's goal. "
+    "Prefer a specific matching action (e.g. a 'See all plans' button for a pricing question) over a "
+    "generic one (e.g. 'Settings'). Use an exact selector from the interface state; null if none fits.\n"
     "- next_step: the concrete next action for the user, or null.\n"
     "Never offer to click on the user's behalf."
 )
@@ -34,7 +35,7 @@ _OUTPUT_SPEC = (
 def _lean_crew(req: AskRequest) -> Crew:
     """One agent, one LLM call — context injected for low latency."""
     llm = get_llm()
-    state = analyze_dom(req.dom)
+    state = analyze_dom(req.dom, req.question)
     docs = retrieve(req.tenant_id, req.question, k=3)
     doc_text = (
         "\n\n".join(f"[{s.source} · {s.title}]\n{s.text}" for s in docs)
@@ -63,12 +64,12 @@ def _lean_crew(req: AskRequest) -> Crew:
 def _deep_crew(req: AskRequest) -> Crew:
     """Perception ∥ Knowledge → Guide — real 3-agent orchestration."""
     llm = get_llm(deep=True)
-    state = analyze_dom(req.dom)
+    state = analyze_dom(req.dom, req.question)
     doc_tool = make_doc_search_tool(req.tenant_id)
 
     perception = Agent(
         role="State Reader",
-        goal="Diagnose the interface state and why an element is blocked.",
+        goal="Diagnose the interface state and which element matches the user's goal.",
         backstory="An expert that reads the DOM state to understand the app's business logic.",
         llm=llm, verbose=False, allow_delegation=False,
     )
@@ -86,10 +87,10 @@ def _deep_crew(req: AskRequest) -> Crew:
     t_perception = Task(
         description=(
             f"User question: {req.question}\n\nInterface state:\n{state}\n\n"
-            "Identify the element involved and explain why it is blocked. "
-            "Give the CSS selector of the root cause if one exists."
+            "Identify the single most relevant element for the user's goal and explain why. "
+            "Give its exact CSS selector."
         ),
-        expected_output="Short diagnosis: element, selector, reason it's blocked.",
+        expected_output="Short diagnosis: element, selector, reason.",
         agent=perception, async_execution=True,
     )
     t_knowledge = Task(

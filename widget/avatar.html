@@ -33,16 +33,14 @@
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(22, 1, 0.1, 100);
-
       scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1.2));
       const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(1, 2, 2); scene.add(key);
       const fill = new THREE.DirectionalLight(0x99aaff, 0.5); fill.position.set(-2, 1, 1); scene.add(fill);
 
       function resize() {
-        const w = canvas.clientWidth || 360, h = canvas.clientHeight || 190;
+        const w = canvas.clientWidth || 360, h = canvas.clientHeight || 200;
         renderer.setSize(w, h, false);
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
+        camera.aspect = w / h; camera.updateProjectionMatrix();
       }
       window.addEventListener("resize", resize);
 
@@ -57,8 +55,7 @@
       new GLTFLoader().load(
         "/ava-avatar.glb",
         (gltf) => {
-          root = gltf.scene;
-          scene.add(root);
+          root = gltf.scene; scene.add(root);
           root.traverse((o) => {
             if (o.isMesh && o.morphTargetDictionary) { o.frustumCulled = false; morphMeshes.push(o); }
             if (o.isBone && o.name === "Head") headBone = o;
@@ -80,7 +77,7 @@
         () => { canvas.style.display = "none"; fallback.style.display = "block"; }
       );
 
-      // idle: subtle sway + blink
+      // ---- idle: subtle sway + blink ----
       let nextBlink = 1.5, blinkStart = -1;
       function idle(t) {
         if (headBone) {
@@ -89,55 +86,99 @@
         }
         if (blinkStart < 0 && t > nextBlink) { blinkStart = t; nextBlink = t + 2 + Math.random() * 3.5; }
         if (blinkStart >= 0) {
-          const p = (t - blinkStart) / 0.13;
-          const v = p < 1 ? Math.sin(p * Math.PI) : 0;
+          const p = (t - blinkStart) / 0.13, v = p < 1 ? Math.sin(p * Math.PI) : 0;
           setMorph("eyeBlinkLeft", v); setMorph("eyeBlinkRight", v);
           if (p >= 1) blinkStart = -1;
         }
       }
 
       const VIS = ["viseme_aa", "viseme_E", "viseme_I", "viseme_O", "viseme_U"];
-      function talk(t) {
-        setMorph("jawOpen", 0.12 + (Math.sin(t * 14) * 0.5 + 0.5) * 0.45);
-        VIS.forEach((v) => setMorph(v, 0));
-        setMorph(VIS[Math.floor(t * 7) % VIS.length], 0.35 * (Math.sin(t * 9) * 0.5 + 0.5));
-      }
       function closeMouth() { setMorph("jawOpen", 0); VIS.forEach((v) => setMorph(v, 0)); }
+      function mouthFromAudio(t) {
+        let j;
+        if (analyser) {
+          analyser.getByteTimeDomainData(audioData);
+          let sum = 0;
+          for (let i = 0; i < audioData.length; i++) { const v = (audioData[i] - 128) / 128; sum += v * v; }
+          j = Math.min(0.7, Math.sqrt(sum / audioData.length) * 3.6);
+        } else {
+          j = 0.12 + (Math.sin(t * 14) * 0.5 + 0.5) * 0.4; // web-speech fallback oscillation
+        }
+        setMorph("jawOpen", j);
+        VIS.forEach((v) => setMorph(v, 0));
+        setMorph(VIS[Math.floor(t * 7) % VIS.length], j * 0.5);
+      }
 
       function loop(ms) {
         requestAnimationFrame(loop);
         const t = ms * 0.001;
-        if (root) { idle(t); speaking ? talk(t) : closeMouth(); }
+        if (root) { idle(t); speaking ? mouthFromAudio(t) : closeMouth(); }
         renderer.render(scene, camera);
       }
       requestAnimationFrame(loop);
 
-      // ---- voice (browser TTS drives the mouth) ----
+      // ---- voice: ElevenLabs (real audio + amplitude lip-sync), Web Speech fallback ----
+      let audioCtx = null, analyser = null, audioData = null, srcNode = null;
+
+      async function speakEleven(text) {
+        const res = await fetch("/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok || res.status === 204) throw new Error("tts unavailable");
+        const buf = await res.arrayBuffer();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+        const decoded = await audioCtx.decodeAudioData(buf);
+        if (srcNode) { try { srcNode.stop(); } catch (e) {} }
+        srcNode = audioCtx.createBufferSource();
+        srcNode.buffer = decoded;
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        audioData = new Uint8Array(analyser.frequencyBinCount);
+        srcNode.connect(analyser); analyser.connect(audioCtx.destination);
+        speaking = true;
+        srcNode.onended = () => { speaking = false; analyser = null; };
+        srcNode.start();
+      }
+
       function pickVoice() {
         const vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
         if (!vs.length) return null;
-        const pref = ["samantha", "google us english", "microsoft aria", "microsoft jenny", "microsoft michelle", "karen", "tessa"];
+        const pref = ["samantha", "google us english", "microsoft aria", "microsoft jenny", "karen"];
         for (const p of pref) { const m = vs.find((v) => v.name.toLowerCase().includes(p)); if (m) return m; }
         const en = vs.filter((v) => /^en[-_]?us/i.test(v.lang));
-        return en.find((v) => !v.localService) || en[0] || vs.find((v) => /^en/i.test(v.lang)) || vs[0];
+        return en.find((v) => !v.localService) || en[0] || vs[0];
       }
-      function speak(text) {
-        if (!text || muted || !window.speechSynthesis) return;
+      function speakBrowser(text) {
+        if (!window.speechSynthesis) return;
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
         u.lang = "en-US"; u.rate = 1.0; u.pitch = 1.06;
         const v = pickVoice(); if (v) u.voice = v;
+        analyser = null; // fallback uses oscillation lip-sync
         u.onstart = () => { speaking = true; };
         u.onend = () => { speaking = false; };
         u.onerror = () => { speaking = false; };
         speechSynthesis.speak(u);
+      }
+
+      function speak(text) {
+        if (!text || muted) return;
+        speakEleven(text).catch(() => speakBrowser(text));
+      }
+      function stopSpeaking() {
+        if (srcNode) { try { srcNode.stop(); } catch (e) {} }
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        speaking = false; analyser = null;
       }
       if (window.speechSynthesis) speechSynthesis.getVoices();
 
       window.addEventListener("message", (e) => {
         const d = e.data || {};
         if (d.ava === "speak") speak(d.text);
-        else if (d.ava === "mute") { muted = !!d.value; if (muted) { speechSynthesis.cancel(); speaking = false; } }
+        else if (d.ava === "mute") { muted = !!d.value; if (muted) stopSpeaking(); }
       });
       try { parent.postMessage({ ava: "ready" }, "*"); } catch (_) {}
       resize();
